@@ -30,8 +30,10 @@ MObject probeDeformerARAPNode::aWeightCurveS;
 MObject probeDeformerARAPNode::aWeightCurveL;
 MObject probeDeformerARAPNode::aMaxDist;
 MObject probeDeformerARAPNode::aTransWeight;
+MObject probeDeformerARAPNode::aConstraintWeight;
 MObject probeDeformerARAPNode::aRotationConsistency;
 MObject probeDeformerARAPNode::aFrechetSum;
+MObject probeDeformerARAPNode::aNormExponent;
 
 void* probeDeformerARAPNode::creator() { return new probeDeformerARAPNode; }
  
@@ -43,6 +45,8 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     
     short blendMode = data.inputValue( aBlendMode ).asShort();
     float new_transWeight = data.inputValue( aTransWeight ).asFloat();
+    float new_constraintWeight = data.inputValue( aConstraintWeight ).asFloat();
+    float new_normExponent = data.inputValue( aNormExponent ).asFloat();
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
     int new_numPrb = hMatrixArray.elementCount();
@@ -53,10 +57,13 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     readMatrixArray(hInitMatrixArray, initMatrix);
     readMatrixArray(hMatrixArray, matrix);
     // new probe connection
-    if(numPts == 0 || blendMode == 99 || transWeight != new_transWeight || numPrb != new_numPrb)
+    if(numPts == 0 || blendMode == 99 || normExponent != new_normExponent || transWeight != new_transWeight
+       || constraintWeight != new_constraintWeight || numPrb != new_numPrb)
     {
         numPrb = new_numPrb;
         transWeight = new_transWeight;
+        constraintWeight = new_constraintWeight;
+        normExponent = new_normExponent;
         // probe position
         probeCenter.resize(numPrb);
         for(int i=0;i<numPrb;i++)
@@ -87,7 +94,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             sidist[j]=0;
             idist[j].resize(numPrb);
             for(unsigned int i=0; i<numPrb; i++){
-                idist[j][i] = 1.0 / ((tetCenter[j]-probeCenter[i]).squaredNorm());
+                idist[j][i] = 1.0 / pow((tetCenter[j]-probeCenter[i]).squaredNorm(),normExponent/2.0);
                 sidist[j] += idist[j][i];
             }
         }
@@ -253,7 +260,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
 
 // compute target vertices position
-	MatrixXf G=MatrixXf::Zero(numTet+numPts+numPrb,3);
+	MatrixXf G=MatrixXf::Zero(numTet+numPts,3);
     arapG(At, PI, triangles, aff, G);
     MatrixXf Sol = solver.solve(G);
     for(unsigned int i=0;i<numPts;i++){
@@ -273,7 +280,7 @@ void probeDeformerARAPNode::arapHI(const std::vector<Matrix4f>& PI, const MIntAr
     tripletList.reserve(numTet*16+numPrb*6);
     Matrix4f Hlist;
 	Matrix4f diag=Matrix4f::Identity();
-	diag(3,3)=EPSILON;
+	diag(3,3)=transWeight;
     int s,t;
 	for(unsigned int i=0;i<numTet;i++){
 		Hlist=PI[i].transpose()*diag*PI[i];
@@ -293,17 +300,30 @@ void probeDeformerARAPNode::arapHI(const std::vector<Matrix4f>& PI, const MIntAr
 			}
 		}
 	}
-    // set constraint
-    for(int i=0;i<numPrb;i++){
-        tripletList.push_back(T(dim+i,triangles[3*constraintTet[i]],1.0/3.0));
-        tripletList.push_back(T(dim+i,triangles[3*constraintTet[i]+1],1.0/3.0));
-        tripletList.push_back(T(dim+i,triangles[3*constraintTet[i]+2],1.0/3.0));
-        tripletList.push_back(T(triangles[3*constraintTet[i]],dim+i,1.0/3.0));
-        tripletList.push_back(T(triangles[3*constraintTet[i]+1],dim+i,1.0/3.0));
-        tripletList.push_back(T(triangles[3*constraintTet[i]+2],dim+i,1.0/3.0));
-    }
-    SpMat mat(dim+numPrb, dim+numPrb);
+    //    // set hard constraint
+    //    for(int i=0;i<numConstraint;i++){
+    //        tripletList.push_back(T(dim+i,tr[3*constraintTet[i]],1.0/3.0));
+    //        tripletList.push_back(T(dim+i,tr[3*constraintTet[i]+1],1.0/3.0));
+    //        tripletList.push_back(T(dim+i,tr[3*constraintTet[i]+2],1.0/3.0));
+    //        tripletList.push_back(T(tr[3*constraintTet[i]],dim+i,1.0/3.0));
+    //        tripletList.push_back(T(tr[3*constraintTet[i]+1],dim+i,1.0/3.0));
+    //        tripletList.push_back(T(tr[3*constraintTet[i]+2],dim+i,1.0/3.0));
+    //    }
+    //    SpMat mat(dim+numConstraint, dim+numConstraint);
+    SpMat mat(dim, dim);
     mat.setFromTriplets(tripletList.begin(), tripletList.end());
+    // set soft constraint
+    std::vector<T> constraintList;
+    constraintList.reserve(numPrb*3);
+    F.resize(dim,numPrb);
+    F.setZero();
+    for(int i=0;i<numPrb;i++){
+        constraintList.push_back(T(triangles[3*constraintTet[i]],i,1.0/3.0));
+        constraintList.push_back(T(triangles[3*constraintTet[i]+1],i,1.0/3.0));
+        constraintList.push_back(T(triangles[3*constraintTet[i]+2],i,1.0/3.0));
+    }
+    F.setFromTriplets(constraintList.begin(), constraintList.end());
+    mat += constraintWeight * F * F.transpose();
     solver.compute(mat);
 }
 
@@ -312,7 +332,7 @@ void probeDeformerARAPNode::arapG(const std::vector<Matrix4f>& At, const std::ve
 {
     Matrix4f Glist;
     Matrix4f diag=Matrix4f::Identity();
-    diag(3,3)=EPSILON;
+    diag(3,3)=transWeight;
     for(unsigned int i=0;i<numTet;i++){
         Glist=At[i].transpose()*diag*PI[i];
         for(unsigned int k=0;k<3;k++){
@@ -322,11 +342,25 @@ void probeDeformerARAPNode::arapG(const std::vector<Matrix4f>& At, const std::ve
             G(numPts+i,k) += Glist(k,3);
         }
     }
-    // set constraint
+    // set hard constraint
+    //	MatrixXf G=MatrixXf::Zero(dim+numConstraint,3);
+    //    for(int i=0;i<numConstraint;i++){
+    //        RowVector4f cv = constraintVector[i]*aff[i];
+    //        G.block(dim+i,0,1,3) << cv(0), cv(1), cv(2);
+    //    }
+    // set soft constraint
+    std::vector<T> constraintList;
+    constraintList.reserve(numPrb*3);
+    SpMat S(numPrb,3);
     for(int i=0;i<numPrb;i++){
         RowVector4f cv = constraintVector[i]*aff[i];
-        G.block(numPts+numTet+i,0,1,3) << cv(0), cv(1), cv(2);
+        constraintList.push_back(T(i,0,cv(0)));
+        constraintList.push_back(T(i,1,cv(1)));
+        constraintList.push_back(T(i,2,cv(2)));
     }
+    S.setFromTriplets(constraintList.begin(), constraintList.end());
+    SpMat FS = constraintWeight * F * S;
+    G += MatrixXf(FS);
 }
 
 
@@ -409,6 +443,16 @@ MStatus probeDeformerARAPNode::initialize()
     nAttr.setStorable(true);
 	addAttribute( aTransWeight );
 	attributeAffects( aTransWeight, outputGeom );
+    
+	aConstraintWeight = nAttr.create("constraintWeight", "cw", MFnNumericData::kFloat, 100.0);
+    nAttr.setStorable(true);
+	addAttribute( aConstraintWeight );
+	attributeAffects( aConstraintWeight, outputGeom );
+    
+	aNormExponent = nAttr.create("normExponent", "ne", MFnNumericData::kFloat, 1.0);
+    nAttr.setStorable(true);
+	addAttribute( aNormExponent );
+	attributeAffects( aNormExponent, outputGeom );
     
 	//ramp
     aWeightCurveR = rAttr.createCurveRamp( "weightCurveRotation", "wcr" );

@@ -20,8 +20,8 @@ Look at the included Xcode project file.
 For Windows users, please refer to Autodesk's web page.
 
 How to use:
-put the plugin in "MAYA_PLUG_IN_PATH"
-put the python script in "MAYA_SCRIPT_PATH"
+put the plugins in "MAYA_PLUG_IN_PATH"
+put the UI python script in "MAYA_SCRIPT_PATH"
 open script editor in Maya and type in the following Python command:
 #
 import ui_probeDeformer as ui

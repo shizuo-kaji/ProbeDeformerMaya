@@ -27,6 +27,7 @@ MObject probeDeformerNode::aWeightCurveL;
 MObject probeDeformerNode::aMaxDist;
 MObject probeDeformerNode::aRotationConsistency;
 MObject probeDeformerNode::aFrechetSum;
+MObject probeDeformerNode::aNormExponent;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
@@ -39,6 +40,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     short blendMode = data.inputValue( aBlendMode ).asShort();
     short weightMode = data.inputValue( aWeightMode ).asShort();
     float maxDist = data.inputValue( aMaxDist ).asFloat();
+    float normExponent = data.inputValue( aNormExponent ).asFloat();
 	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
 	MRampAttribute rWeightCurveR( thisNode, aWeightCurveR, &status );
@@ -115,7 +117,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         p << pts[j].x, pts[j].y, pts[j].z;
 
         for(unsigned int i=0; i<num; i++){
-            idist[i] = 1.0 / ((p-center[i]).squaredNorm());
+            idist[i] = 1.0 / pow((p-center[i]).squaredNorm(),normExponent/2.0);
             sidist += idist[i];
         }
         std::vector<float> wr(num),ws(num),wl(num);
@@ -199,7 +201,8 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 				m(i,k)=mat(i,k);
 			}
 		}
-        pts[j] *= m*localToWorldMatrix.inverse();
+        pts[j] *= m;
+        pts[j] *= localToWorldMatrix.inverse();
     }
     // set positions
     itGeo.setAllPositions(pts);
@@ -281,6 +284,11 @@ MStatus probeDeformerNode::initialize()
 	addAttribute( aMaxDist );
 	attributeAffects( aMaxDist, outputGeom );
 
+	aNormExponent = nAttr.create("normExponent", "ne", MFnNumericData::kFloat, 1.0);
+    nAttr.setStorable(true);
+	addAttribute( aNormExponent );
+	attributeAffects( aNormExponent, outputGeom );
+    
 	//ramp
     aWeightCurveR = rAttr.createCurveRamp( "weightCurveRotation", "wcr" );
     addAttribute( aWeightCurveR );

@@ -41,9 +41,11 @@ public:
 	static MObject		aWeightCurveL;
 	static MObject		aMaxDist;
     static MObject      aTransWeight;
+    static MObject      aConstraintWeight;
 	static MObject		aRotationConsistency;
 	static MObject		aFrechetSum;
-
+    static MObject      aNormExponent;
+    
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4f>& m);
     void tetMatrixC(const MPointArray& p, const MIntArray& triangles, std::vector<Matrix4f>& m, std::vector<Vector3f>& tetCenter);
@@ -56,7 +58,10 @@ private:
 	std::vector<Vector3f> tetCenter;     // barycenter of tetrahedra
     std::vector<Vector3f> probeCenter;
     float transWeight;
+    float constraintWeight;
+    float normExponent;
     SparseLU<SpMat> solver;
+    SpMat F;                // ARAP constraint matrix
 	MIntArray triangles;
     MPointArray pts;
 	unsigned int numPts;

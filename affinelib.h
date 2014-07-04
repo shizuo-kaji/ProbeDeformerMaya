@@ -47,6 +47,7 @@ public:
     static void polarBySVD(const Matrix3f& m, Matrix3f& U, Vector3f& s, Matrix3f& R);
     static void polarByParam(const Matrix3f& m, Matrix3f& S, Matrix3f& R);
     static void parametriseGL(const Matrix3f& m, Matrix3f& logS, Matrix3f& R);
+    static void polarN(const MatrixXf& m, MatrixXf& S, MatrixXf& R);
     static  Matrix3f logSO(const Matrix3f& m);
     static  Matrix3f logSOc(const Matrix3f& m, float& prevTheta, Vector3f& prevN);
     static  Matrix3f expSO(const Matrix3f& m);
@@ -98,6 +99,76 @@ void Matrixlib::polar(const Matrix3f& m, Matrix3f& U, Vector3f& s, Matrix3f& R)
     Vector3f si = s.array().inverse();
     R = U * si.asDiagonal() * U.transpose() * m;
 }
+
+void Matrixlib::polarN(const MatrixXf& m, MatrixXf& S, MatrixXf& R)
+/** Polar decomposition m = S R for square matrix of any size
+ * @param m matrix to be decomposed
+ * @param S symmetric part
+ * @param R rotation part
+ */
+{
+    assert(m.determinant()>0);
+    MatrixXf A= m*m.transpose();
+    int N = A.rows();
+	SelfAdjointEigenSolver<MatrixXf> eigensolver;
+	eigensolver.compute(A, EigenvaluesOnly);
+    VectorXf s = eigensolver.eigenvalues();
+    MatrixXf VM = MatrixXf::Zero(N,N);
+    float ss;
+    for(int i=0;i<N; i++){
+        ss = 1.0;
+        for(int j=0;j<N; j++){
+            VM(i,j) = ss;
+            ss *= s[i];
+        }
+    }
+    // compute logS
+    VectorXf logs = s.array().log();
+    VectorXf a = VM.colPivHouseholderQr().solve(logs);
+    MatrixXf logS = MatrixXf::Zero(N,N);
+    MatrixXf AA = MatrixXf::Identity(N,N);
+    for(int i=0;i<N; i++){
+        logS += a[i] * AA;
+        AA *= A;
+    }
+    logS /= 2.0;
+    // compute S
+    s = logs/2.0;
+    for(int i=0;i<N; i++){
+        ss = 1.0;
+        for(int j=0;j<N; j++){
+            VM(i,j) = ss;
+            ss *= s[i];
+        }
+    }
+    VectorXf exps = s.array().exp();
+    VectorXf b = VM.colPivHouseholderQr().solve(exps);
+    S = MatrixXf::Zero(N,N);
+    AA = MatrixXf::Identity(N,N);
+    for(int i=0;i<N; i++){
+        S += b[i] * AA;
+        AA *= logS;
+    }
+    // compute R
+    s = -s;
+    for(int i=0;i<N; i++){
+        ss = 1.0;
+        for(int j=0;j<N; j++){
+            VM(i,j) = ss;
+            ss *= s[i];
+        }
+    }
+    VectorXf expsinv = exps.array().inverse();
+    VectorXf c = VM.colPivHouseholderQr().solve(expsinv);
+    MatrixXf SINV = MatrixXf::Zero(N,N);
+    AA = MatrixXf::Identity(N,N);
+    for(int i=0;i<N; i++){
+        SINV += c[i] * AA;
+        AA *= -logS;
+    }
+    R = SINV * m;
+}
+
 
 void Matrixlib::polarBySVD(const Matrix3f& m, Matrix3f& U, Vector3f& s, Matrix3f& R){
     /** Polar decomposition m = U diag(s) U^T R  by SVD

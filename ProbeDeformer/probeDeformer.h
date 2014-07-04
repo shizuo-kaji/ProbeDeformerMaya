@@ -38,6 +38,7 @@ public:
 	static MObject		aMaxDist;
 	static MObject		aRotationConsistency;
 	static MObject		aFrechetSum;
+    static MObject      aNormExponent;
 
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4f>& m);
