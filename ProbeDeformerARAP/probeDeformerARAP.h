@@ -1,8 +1,3 @@
-//   Probe Deformer Maya Plugin
-//   by Shizuo KAJI,     Nov. 2013
-//
-// requirements:  Maya,  Eigen library,   matrixlib
-
 #pragma once
 
 #pragma comment(linker, "/export:initializePlugin /export:uninitializePlugin")
@@ -11,11 +6,13 @@
 
 #include <numeric>
 #include <Eigen/SparseLU>
+#include <Eigen/SparseCholesky>
+#include <Eigen/IterativeLinearSolvers>
 #include <unsupported/Eigen/MatrixFunctions>
 
 #include "affinelib.h"
 
-typedef Eigen::SparseMatrix<float> SpMat;
+typedef Eigen::SparseMatrix<double> SpMat;
 typedef Eigen::Triplet<double> T;
 
 using namespace Eigen;
@@ -23,7 +20,7 @@ using namespace Eigen;
 class probeDeformerARAPNode : public MPxDeformerNode
 {
 public:
-    probeDeformerARAPNode(): numTet(0), numPts(0), numPrb(0), transWeight(0.0f)  {};
+    probeDeformerARAPNode(): numTet(0), numPts(0), numPrb(0), transWeight(0.0)  {};
     virtual MStatus deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex );
 	virtual MStatus accessoryNodeSetup( MDagModifier& cmd );
     static  void*   creator();
@@ -34,7 +31,7 @@ public:
     static MObject      aInitMatrix;
     static MObject      aMatrix;
     static MObject      aBlendMode;
-    static MObject      aTransMode;
+    static MObject      aWorldMode;
 	static MObject		aWeightMode;
 	static MObject		aWeightCurveR;
 	static MObject		aWeightCurveS;
@@ -47,28 +44,30 @@ public:
     static MObject      aNormExponent;
     
 private:
-    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4f>& m);
-    void tetMatrixC(const MPointArray& p, const MIntArray& triangles, std::vector<Matrix4f>& m, std::vector<Vector3f>& tetCenter);
-	void arapHI(const std::vector<Matrix4f>& PI, const MIntArray& triangles);
-	void arapG(const std::vector< Matrix4f>& At, const std::vector<Matrix4f>& PI,
-                  const MIntArray& triangles, const std::vector<Matrix4f>& aff, MatrixXf& G);
-	std::vector<Vector3f> prevNs;
-	std::vector<float> prevThetas;
-	std::vector<Matrix4f> PI;
-	std::vector<Vector3f> tetCenter;     // barycenter of tetrahedra
-    std::vector<Vector3f> probeCenter;
-    float transWeight;
-    float constraintWeight;
-    float normExponent;
+    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
+    void tetMatrixC(const MPointArray& p, const MIntArray& triangles, std::vector<Matrix4d>& m, std::vector<Vector3d>& tetCenter);
+	void arapHI(const std::vector<Matrix4d>& PI, const MIntArray& triangles);
+	void arapG(const std::vector< Matrix4d>& At, const std::vector<Matrix4d>& PI,
+                  const MIntArray& triangles, const std::vector<Matrix4d>& aff, MatrixXd& G);
+	std::vector<Vector3d> prevNs;
+	std::vector<double> prevThetas;
+	std::vector<Matrix4d> PI;
+	std::vector<Vector3d> tetCenter;     // barycenter of tetrahedra
+    std::vector<Vector3d> probeCenter;
+    double transWeight;
+    double constraintWeight;
+    double normExponent;
+    bool worldMode;
+//    SimplicialLDLT<SpMat> solver;
     SparseLU<SpMat> solver;
     SpMat F;                // ARAP constraint matrix
 	MIntArray triangles;
     MPointArray pts;
-	unsigned int numPts;
-    unsigned int numTet;
+	int numPts;
+    int numTet;
     int numPrb;
     std::vector<int> constraintTet;
-    std::vector<RowVector4f> constraintVector;
-    std::vector<float> sidist;
-    std::vector< std::vector<float> > idist;
+    std::vector<RowVector4d> constraintVector;
+    std::vector<double> sidist;
+    std::vector< std::vector<double> > idist;
 };

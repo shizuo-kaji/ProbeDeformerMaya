@@ -13,7 +13,8 @@ ProbeDeformer plugins for Maya
 There are two versions of deformers;
 one is simple, and the other adds ARAP modifiation.
 For the detail of the algorithm, refer to the paper 
-"in preparation."
+"A concise parametrisation of affine transformation" by S. Kaji and H. Ochiai.
+http://skaji.org/files/WEB-exponential.pdf
 
 How to compile:
 Look at the included Xcode project file.

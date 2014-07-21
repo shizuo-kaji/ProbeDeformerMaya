@@ -15,10 +15,10 @@ import maya.cmds as cmds
 import pymel.core as pm
 
 try:
-    #    cmds.loadPlugin("probeDeformer.py")
+    cmds.loadPlugin("probeDeformer.py")
     cmds.loadPlugin("ProbeDeformer")
     cmds.loadPlugin("ProbeDeformerARAP")
-#    cmds.loadPlugin("DF_TALK_locator")
+    cmds.loadPlugin("probeLocator.py")
 except:
     print("Plugin already loaded")
 
@@ -28,7 +28,7 @@ class UI_ProbeDeformer:
     uiID = "ProbeDeformer"
     title = "ProbeDeformerPlugin"
     
-    deformers = [0,1]
+    deformers = [0,1,2]
     probes = []
     
     ## Constructor
@@ -40,6 +40,8 @@ class UI_ProbeDeformer:
             pm.menu( label='Create', tearOff=True )
             pm.menuItem( label="Probe", c=pm.Callback( self.initPlugin, "probe") )
             pm.menuItem( label="Probe ARAP", c=pm.Callback( self.initPlugin, "probeDeformerARAP") )
+            pm.menuItem( label="Probe Python", c=pm.Callback( self.initPlugin, "probePy") )
+            pm.menuItem( label="Probe Locator", c=pm.Callback( self.createProbeLocator ) )
             self._parentLayout = pm.columnLayout( adj=True )
             with self._parentLayout:
                 self.createUISet()
@@ -59,13 +61,15 @@ class UI_ProbeDeformer:
                         pm.gradientControl( at='%s.wcs' % self.deformers[0][i].name() )
                         pm.text(l='L')
                         pm.gradientControl( at='%s.wcl' % self.deformers[0][i].name() )
-                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+3) :
+                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+4) :
+                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 0, i))
+                        pm.attrControlGrp( label="blend mode", attribute= self.deformers[0][i].bm)
                         pm.button( l="Add", c=pm.Callback( self.addProbe, 0, i) )
                         pm.text(l="Press to reset")
                         for j in range(len(self.probes[i])):
                             pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.resetProbe, 0, i, j) )
-                    with pm.rowLayout(numberOfColumns=3) :
-                        pm.attrControlGrp( label="blend mode", attribute= self.deformers[0][i].bm)
+                    with pm.rowLayout(numberOfColumns=4) :
+                        pm.attrControlGrp( label="world mode", attribute= self.deformers[0][i].worldMode)
                         pm.attrControlGrp( label="rotation consistency", attribute= self.deformers[0][i].rc)
                         pm.attrControlGrp( label="Frechet sum", attribute= self.deformers[0][i].fs)
                     with pm.rowLayout(numberOfColumns=3) :
@@ -85,13 +89,15 @@ class UI_ProbeDeformer:
                         pm.gradientControl( at='%s.wcs' % self.deformers[1][i].name() )
                         pm.text(l='L')
                         pm.gradientControl( at='%s.wcl' % self.deformers[1][i].name() )
-                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+3) :
-                        pm.button( l="Add", c=pm.Callback( self.addProbe, 1, i) )
-                        pm.text(l="Press to reset")
-                        for j in range(len(self.probes[i])):
-                            pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.resetProbe, 1, i, j) )
-                    with pm.rowLayout(numberOfColumns=3) :
+                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+4) :
+                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 1, i))
                         pm.attrControlGrp( label="blend mode", attribute= self.deformers[1][i].bm)
+                        pm.button( l="Add", c=pm.Callback( self.addProbe, 1, i) )
+                        pm.text(l="Click to delete")
+                        for j in range(len(self.probes[i])):
+                            pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.deleteProbe, 1, i, j) )
+                    with pm.rowLayout(numberOfColumns=3) :
+                        pm.attrControlGrp( label="world mode", attribute= self.deformers[1][i].worldMode)
                         pm.attrControlGrp( label="rotation consistency", attribute= self.deformers[1][i].rc)
                         pm.attrControlGrp( label="normExponent", attribute=self.deformers[1][i].ne)
                     with pm.rowLayout(numberOfColumns=2) :
@@ -114,6 +120,7 @@ class UI_ProbeDeformer:
                         pm.text(l='L')
                         pm.gradientControl( at='%s.wcl' % self.deformers[2][i].name() )
                     with pm.rowLayout(numberOfColumns=len(self.probes[i])+3) :
+                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 2, i ))
                         pm.button( l="Add", c=pm.Callback( self.addProbe, 2, i) )
                         pm.text(l="Press to reset")
                         for j in range(len(self.probes[i])):
@@ -141,21 +148,37 @@ class UI_ProbeDeformer:
             deformer.ipm[i].set(meshes[i].worldMatrix.get()) # set initial matrices
         cmds.makePaintable(deformerType, 'weights', attrType='multiFloat', shapeMode='deformer')
         self.updateUI()
-    
+
+    # delete deformer node
+    def deleteNode(self,type,i):
+        cmds.delete(self.deformers[type][i].name())
+        self.updateUI()
+
     # set the selected probes's current matrix as the initial matrix
     def resetProbe(self,type,i,j):
         self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
         self.deformers[type][i].ipm[j].set(self.probes[i][j].worldMatrix.get())
     
+    # set the selected probes's current matrix as the initial matrix
+    def deleteProbe(self,type,i,j):
+        self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
+    #TODO
+
     # add a new probe
     def addProbe(self,type,i):
         self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
-        self.probes[i].append(pm.ls(pm.polyPyramid(ns=3)[0])[0])
-        #self.probes[i].append(pm.ls(cmds.createNode('DF_TALK_locator'))[0])
-        j=len(self.probes[i])-1
-        self.deformers[type][i].ipm[j].set(self.probes[i][j].worldMatrix.get())
-        cmds.connectAttr(self.probes[i][-1]+".matrix", self.deformers[type][i]+".pm[%s]" %(j))
+        numOldProbes = len(self.probes[i])
+        newProbes = pm.selected(tr=1)
+        self.probes[i].extend(newProbes)
+        for j in range(numOldProbes,len(self.probes[i])):
+            self.deformers[type][i].ipm[j].set(self.probes[i][j].worldMatrix.get())
+        for j in range(numOldProbes,len(self.probes[i])):
+            cmds.connectAttr(self.probes[i][j]+".worldMatrix", self.deformers[type][i]+".pm[%s]" %(j))
         self.updateUI()
+    
+    # create new probe locator
+    def createProbeLocator(self):
+        cmds.createNode('probeLocator')
     
     # redraw UI
     def updateUI(self):

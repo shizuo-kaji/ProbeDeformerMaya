@@ -12,13 +12,14 @@
 #include "probeDeformer.h"
 
 using namespace Eigen;
+using namespace AffineLib;
 
  
 MTypeId probeDeformerNode::id( 0x00000103 );
 MString probeDeformerNode::nodeName( "probe" );
 MObject probeDeformerNode::aMatrix;
 MObject probeDeformerNode::aInitMatrix;
-MObject probeDeformerNode::aTransMode;
+MObject probeDeformerNode::aWorldMode;
 MObject probeDeformerNode::aBlendMode;
 MObject probeDeformerNode::aWeightMode;
 MObject probeDeformerNode::aWeightCurveR;
@@ -36,11 +37,11 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 	MObject thisNode = thisMObject();
     MStatus status;
     MThreadUtils::syncNumOpenMPThreads();    // for OpenMP
-    //  short transMode = data.inputValue( aTransMode ).asShort();
+    bool worldMode = data.inputValue( aWorldMode ).asBool();
     short blendMode = data.inputValue( aBlendMode ).asShort();
     short weightMode = data.inputValue( aWeightMode ).asShort();
-    float maxDist = data.inputValue( aMaxDist ).asFloat();
-    float normExponent = data.inputValue( aNormExponent ).asFloat();
+    double maxDist = data.inputValue( aMaxDist ).asDouble();
+    double normExponent = data.inputValue( aNormExponent ).asDouble();
 	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
 	MRampAttribute rWeightCurveR( thisNode, aWeightCurveR, &status );
@@ -57,44 +58,44 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 		prevThetas.clear();
 		prevThetas.resize(num, 0.0);
 		prevNs.clear();
-		prevNs.resize(num, Vector3f::Zero());
+		prevNs.resize(num, Vector3d::Zero());
 	}
 // setting transformation matrix
-    std::vector<Matrix4f> initMatrix(num), matrix(num);
+    std::vector<Matrix4d> initMatrix(num), matrix(num);
     readMatrixArray(hInitMatrixArray, initMatrix);
     readMatrixArray(hMatrixArray, matrix);
-    std::vector<Matrix4f> aff(num);
-    std::vector<Vector3f> center(num);
-    for(unsigned int i=0;i<num;i++){
+    std::vector<Matrix4d> aff(num);
+    std::vector<Vector3d> center(num);
+    for( int i=0;i<num;i++){
         aff[i]=initMatrix[i].inverse()*matrix[i];
-        center[i] << Matrixlib::transPart(initMatrix[i]);
+        center[i] << transPart(initMatrix[i]);
     }
-    std::vector<Matrix3f> logR(num),R(num),logS(num),logGL(num);
-    std::vector<Matrix4f> logSE(num),SE(num),logAff(num);
-    std::vector<Vector3f> L(num);
-    std::vector<Vector4f> quat(num);
+    std::vector<Matrix3d> logR(num),R(num),logS(num),logGL(num);
+    std::vector<Matrix4d> logSE(num),SE(num),logAff(num);
+    std::vector<Vector3d> L(num);
+    std::vector<Vector4d> quat(num);
     if(blendMode == 0 || blendMode == 1 || blendMode == 5)  // polarexp or quaternion
     {
-        for(unsigned int i=0;i<num;i++){
-            Matrixlib::parametriseGL(aff[i].block(0,0,3,3), logS[i] ,R[i]);
-            L[i] = Matrixlib::transPart(aff[i]);
+        for( int i=0;i<num;i++){
+            parametriseGL(aff[i].block(0,0,3,3), logS[i] ,R[i]);
+            L[i] = transPart(aff[i]);
             if(blendMode == 0){  // Rotational log
-                logR[i]=Matrixlib::logSOc(R[i], prevThetas[i], prevNs[i]);
+                logR[i]=logSOc(R[i], prevThetas[i], prevNs[i]);
             }else if(blendMode == 1){ // Eucledian log
-                SE[i]=Matrixlib::affine(R[i], L[i]);
-                logSE[i]=Matrixlib::logSEc(SE[i], prevThetas[i], prevNs[i]);
+                SE[i]=affine(R[i], L[i]);
+                logSE[i]=logSEc(SE[i], prevThetas[i], prevNs[i]);
             }else if(blendMode == 5){ // quaternion
-                Quaternion<float> Q(R[i].transpose());
+                Quaternion<double> Q(R[i].transpose());
                 quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
             }
         }
     }else if(blendMode == 2){    //logmatrix3
-        for(unsigned int i=0;i<num;i++){
+        for( int i=0;i<num;i++){
             logGL[i] = aff[i].block(0,0,3,3).log();
-            L[i] = Matrixlib::transPart(aff[i]);
+            L[i] = transPart(aff[i]);
         }
     }else if(blendMode == 3){   // logmatrix4
-        for(unsigned int i=0;i<num;i++){
+        for( int i=0;i<num;i++){
             logAff[i] = aff[i].log();
         }
     }
@@ -105,104 +106,110 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     MPointArray pts;
     itGeo.allPositions(pts);
     int numPts = pts.length();
-    for(int j=0; j<numPts; j++ )
-        pts[j] *= localToWorldMatrix;
-    
+    if(worldMode){
+        for(int j=0; j<numPts; j++ )
+            pts[j] *= localToWorldMatrix;
+    }
 #pragma omp parallel for
     for(int j=0; j<numPts; j++ ){
         // weight computation
-        float sidist=0;
-        std::vector<float> idist(num);
-		Vector3f p;
+        double sidist=0;
+        std::vector<double> idist(num);
+		Vector3d p;
         p << pts[j].x, pts[j].y, pts[j].z;
 
-        for(unsigned int i=0; i<num; i++){
+        for( int i=0; i<num; i++){
             idist[i] = 1.0 / pow((p-center[i]).squaredNorm(),normExponent/2.0);
             sidist += idist[i];
         }
-        std::vector<float> wr(num),ws(num),wl(num);
+        std::vector<double> wr(num),ws(num),wl(num);
         if(weightMode == 0){
-            for(unsigned int i=0; i<num; i++){
+            for( int i=0; i<num; i++){
                 wr[i] = ws[i] = wl[i] = idist[i]/sidist;
             }
         }else{
-            for(unsigned int i=0; i<num; i++){
-                rWeightCurveR.getValueAtPosition( (float)(1.0/(sqrt(idist[i])*maxDist)), wr[i] );
-                rWeightCurveS.getValueAtPosition( (float)(1.0/(sqrt(idist[i])*maxDist)), ws[i] );
-                rWeightCurveL.getValueAtPosition( (float)(1.0/(sqrt(idist[i])*maxDist)), wl[i] );
+            float val;
+            for( int i=0; i<num; i++){
+                rWeightCurveR.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+                wr[i] = val;
+                rWeightCurveS.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+                ws[i] = val;
+                rWeightCurveL.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+                wl[i] = val;
             }
         }
         // blend matrix
-		Matrix4f mat=Matrix4f::Zero();
+		Matrix4d mat=Matrix4d::Zero();
         if(blendMode==0){
-            Matrix3f RR=Matrix3f::Zero();
-            Matrix3f SS=Matrix3f::Zero();
-            Vector3f l=Vector3f::Zero();
-            for(unsigned int i=0; i<num; i++){
+            Matrix3d RR=Matrix3d::Zero();
+            Matrix3d SS=Matrix3d::Zero();
+            Vector3d l=Vector3d::Zero();
+            for( int i=0; i<num; i++){
                 RR += wr[i] * logR[i];
                 SS += ws[i] * logS[i];
                 l += wl[i] * L[i];
             }
-            SS = Matrixlib::expSym(SS);
+            SS = expSym(SS);
             if(frechetSum){
-                RR = Matrixlib::frechetSO(R, wr);
+                RR = frechetSO(R, wr);
             }else{
-                RR = Matrixlib::expSO(RR);
+                RR = expSO(RR);
             }
-            mat = Matrixlib::affine(SS*RR, l);
+            mat = affine(SS*RR, l);
         }else if(blendMode==1){    // rigid transformation
-            Matrix4f EE=Matrix4f::Zero();
-            Matrix3f SS=Matrix3f::Zero();
-            for(unsigned int i=0; i<num; i++){
+            Matrix4d EE=Matrix4d::Zero();
+            Matrix3d SS=Matrix3d::Zero();
+            for( int i=0; i<num; i++){
                 EE +=  wr[i] * logSE[i];
                 SS +=  ws[i] * logS[i];
             }
             if(frechetSum){
-                EE = Matrixlib::frechetSE(SE, wr);
+                EE = frechetSE(SE, wr);
             }else{
-                EE = Matrixlib::expSE(EE);
+                EE = expSE(EE);
             }
-            mat = Matrixlib::affine(Matrixlib::expSym(SS))*EE;
+            mat = affine(expSym(SS),Vector3d::Zero())*EE;
         }else if(blendMode == 2){    //logmatrix3
-            Matrix3f G=Matrix3f::Zero();
-            Vector3f l=Vector3f::Zero();
-            for(unsigned int i=0; i<num; i++){
+            Matrix3d G=Matrix3d::Zero();
+            Vector3d l=Vector3d::Zero();
+            for( int i=0; i<num; i++){
                 G +=  wr[i] * logGL[i];
                 l += wl[i] * L[i];
             }
-            mat = Matrixlib::affine(G.exp(), l);
+            mat = affine(G.exp(), l);
         }else if(blendMode == 3){   // logmatrix4
-            Matrix4f A=Matrix4f::Zero();
-            for(unsigned int i=0; i<num; i++)
+            Matrix4d A=Matrix4d::Zero();
+            for( int i=0; i<num; i++)
                 A +=  wr[i] * logAff[i];
             mat = A.exp();
         }else if(blendMode == 5){ // quaternion
-            Vector4f q=Vector4f::Zero();
-            Matrix3f SS=Matrix3f::Zero();
-            Vector3f l=Vector3f::Zero();
-            for(unsigned int i=0; i<num; i++){
+            Vector4d q=Vector4d::Zero();
+            Matrix3d SS=Matrix3d::Zero();
+            Vector3d l=Vector3d::Zero();
+            for( int i=0; i<num; i++){
                 q += wr[i] * quat[i];
                 SS += ws[i] * logS[i];
                 l += wl[i] * L[i];
             }
-            SS = Matrixlib::expSym(SS);
-            Quaternion<float> Q(q);
-            Matrix3f RR = Q.matrix().transpose();
-            mat = Matrixlib::affine(SS*RR, l);
+            SS = expSym(SS);
+            Quaternion<double> Q(q);
+            Matrix3d RR = Q.matrix().transpose();
+            mat = affine(SS*RR, l);
         }else if(blendMode==10){
-            for(unsigned int i=0; i<num; i++){
+            for( int i=0; i<num; i++){
                 mat += wr[i] * aff[i];
             }
         }
         // apply matrix
         MMatrix m;
-		for(unsigned int i=0; i<4; i++){
-			for(unsigned int k=0; k<4; k++){
+		for( int i=0; i<4; i++){
+			for( int k=0; k<4; k++){
 				m(i,k)=mat(i,k);
 			}
 		}
         pts[j] *= m;
-        pts[j] *= localToWorldMatrix.inverse();
+        if(worldMode)
+            pts[j] *= localToWorldMatrix.inverse();
     }
     // set positions
     itGeo.setAllPositions(pts);
@@ -211,11 +218,11 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 
 
 // read array of matrix attributes and convert them to Eigen matrices
-void probeDeformerNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4f>& m)
+void probeDeformerNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m)
 {
     int num=handle.elementCount();
     MMatrix mat;
-    for(unsigned int i=0;i<num;i++){
+    for( int i=0;i<num;i++){
         handle.jumpToArrayElement(i);
         mat=handle.inputValue().asMatrix();
         m[i] << mat(0,0), mat(0,1), mat(0,2), mat(0,3),
@@ -272,6 +279,11 @@ MStatus probeDeformerNode::initialize()
     addAttribute( aFrechetSum );
     attributeAffects( aFrechetSum, outputGeom );
 
+	aWorldMode = nAttr.create( "worldMode", "wrldmd", MFnNumericData::kBoolean, 0 );
+    nAttr.setStorable(true);
+    addAttribute( aWorldMode );
+    attributeAffects( aWorldMode, outputGeom );
+    
     aWeightMode = eAttr.create( "weightMode", "wtm", 0 );
     eAttr.addField( "normal", 0 );
     eAttr.addField( "curve", 1 );
@@ -279,12 +291,13 @@ MStatus probeDeformerNode::initialize()
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );
 
-	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kFloat, 10.0);
+	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kDouble, 8.0);
+    nAttr.setMin( 0.001 );
     nAttr.setStorable(true);
 	addAttribute( aMaxDist );
 	attributeAffects( aMaxDist, outputGeom );
 
-	aNormExponent = nAttr.create("normExponent", "ne", MFnNumericData::kFloat, 1.0);
+	aNormExponent = nAttr.create("normExponent", "ne", MFnNumericData::kDouble, 1.0);
     nAttr.setStorable(true);
 	addAttribute( aNormExponent );
 	attributeAffects( aNormExponent, outputGeom );
@@ -300,7 +313,7 @@ MStatus probeDeformerNode::initialize()
     addAttribute( aWeightCurveL );
 	attributeAffects( aWeightCurveL, outputGeom );
 
-//    aBlendWeight = nAttr.create( "blendWeight", "bw", MFnNumericData::kFloat );
+//    aBlendWeight = nAttr.create( "blendWeight", "bw", MFnNumericData::kDouble );
 //    nAttr.setKeyable( true );
 //    addAttribute( aBlendWeight );
 //    attributeAffects( aBlendWeight, outputGeom );

@@ -1,8 +1,3 @@
-//   Probe Deformer Maya Plugin
-//   by Shizuo KAJI,     Nov. 2013
-//
-// requirements:  Maya,  Eigen library
-
 #pragma once
 
 #pragma comment(linker, "/export:initializePlugin /export:uninitializePlugin")
@@ -12,7 +7,7 @@
 #include <numeric>
 #include <unsupported/Eigen/MatrixFunctions>
 
-#include "affinelib.h"
+#include "../affinelib.h"
 
 using namespace Eigen;
 
@@ -30,7 +25,7 @@ public:
     static MObject      aInitMatrix;
     static MObject      aMatrix;
     static MObject      aBlendMode;
-    static MObject      aTransMode;
+    static MObject      aWorldMode;
 	static MObject		aWeightMode;
 	static MObject		aWeightCurveR;
 	static MObject		aWeightCurveS;
@@ -41,8 +36,8 @@ public:
     static MObject      aNormExponent;
 
 private:
-    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4f>& m);
+    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
 
-	std::vector<Vector3f> prevNs;
-	std::vector<float> prevThetas;
+	std::vector<Vector3d> prevNs;
+	std::vector<double> prevThetas;
 };
