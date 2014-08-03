@@ -14,9 +14,22 @@
 using namespace Eigen;
 using namespace AffineLib;
 
- 
+// parametrisation mode
+#define BM_SRL 0
+#define BM_SES 1
+#define BM_LOG3 3
+#define BM_LOG4 4
+#define BM_QSL 5
+#define BM_AFF 10
+#define BM_OFF -1
+
+// weight mode
+#define WM_INV_DISTANCE 0
+#define WM_CUTOFF_DISTANCE 1
+#define WM_DRAW 2
+
 MTypeId probeDeformerNode::id( 0x00000103 );
-MString probeDeformerNode::nodeName( "probe" );
+MString probeDeformerNode::nodeName( "probeDeformer" );
 MObject probeDeformerNode::aMatrix;
 MObject probeDeformerNode::aInitMatrix;
 MObject probeDeformerNode::aWorldMode;
@@ -47,172 +60,153 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 	MRampAttribute rWeightCurveR( thisNode, aWeightCurveR, &status );
 	MRampAttribute rWeightCurveS( thisNode, aWeightCurveS, &status );
 	MRampAttribute rWeightCurveL( thisNode, aWeightCurveL, &status );
-//    CHECK_MSTATUS_AND_RETURN_IT( status );
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
-    int num = hMatrixArray.elementCount();
-    if(num != hInitMatrixArray.elementCount() || num==0 || blendMode == 99)
+    int numPrb = hMatrixArray.elementCount();
+    if(numPrb != hInitMatrixArray.elementCount() || numPrb==0 || blendMode == BM_OFF)
         return MS::kSuccess;
-	if( ! rotationCosistency || num != prevNs.size())
-	{
+	if( ! rotationCosistency || numPrb != prevNs.size()){
 		prevThetas.clear();
-		prevThetas.resize(num, 0.0);
+		prevThetas.resize(numPrb, 0.0);
 		prevNs.clear();
-		prevNs.resize(num, Vector3d::Zero());
+		prevNs.resize(numPrb, Vector3d::Zero());
 	}
 // setting transformation matrix
-    std::vector<Matrix4d> initMatrix(num), matrix(num);
+    std::vector<Matrix4d> initMatrix(numPrb), matrix(numPrb);
     readMatrixArray(hInitMatrixArray, initMatrix);
     readMatrixArray(hMatrixArray, matrix);
-    std::vector<Matrix4d> aff(num);
-    std::vector<Vector3d> center(num);
-    for( int i=0;i<num;i++){
-        aff[i]=initMatrix[i].inverse()*matrix[i];
-        center[i] << transPart(initMatrix[i]);
+    std::vector<Matrix3d> logR(numPrb),R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
+    std::vector<Matrix4d> logSE(numPrb),SE(numPrb),logAff(numPrb),Aff(numPrb);
+    std::vector<Vector3d> L(numPrb);
+    std::vector<Vector4d> quat(numPrb);
+    std::vector<Vector3d> probeCenter(numPrb);
+    for( int i=0;i<numPrb;i++){
+        Aff[i]=initMatrix[i].inverse()*matrix[i];
+        probeCenter[i] << transPart(initMatrix[i]);
     }
-    std::vector<Matrix3d> logR(num),R(num),logS(num),logGL(num);
-    std::vector<Matrix4d> logSE(num),SE(num),logAff(num);
-    std::vector<Vector3d> L(num);
-    std::vector<Vector4d> quat(num);
-    if(blendMode == 0 || blendMode == 1 || blendMode == 5)  // polarexp or quaternion
-    {
-        for( int i=0;i<num;i++){
-            parametriseGL(aff[i].block(0,0,3,3), logS[i] ,R[i]);
-            L[i] = transPart(aff[i]);
-            if(blendMode == 0){  // Rotational log
+    if(blendMode == BM_SRL || blendMode == BM_SES || blendMode == BM_QSL){
+        for(int i=0;i<numPrb;i++){
+            parametriseGL(Aff[i].block(0,0,3,3), logS[i] ,R[i]);
+            L[i] = transPart(Aff[i]);
+            if(blendMode == BM_SRL){
                 logR[i]=logSOc(R[i], prevThetas[i], prevNs[i]);
-            }else if(blendMode == 1){ // Eucledian log
-                SE[i]=affine(R[i], L[i]);
+            }else if(blendMode == BM_SES){
+                SE[i]=pad(R[i], L[i]);
                 logSE[i]=logSEc(SE[i], prevThetas[i], prevNs[i]);
-            }else if(blendMode == 5){ // quaternion
+            }else if(blendMode == BM_QSL){
                 Quaternion<double> Q(R[i].transpose());
                 quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
+                S[i]=expSym(logS[i]);
             }
         }
-    }else if(blendMode == 2){    //logmatrix3
-        for( int i=0;i<num;i++){
-            logGL[i] = aff[i].block(0,0,3,3).log();
-            L[i] = transPart(aff[i]);
+    }else if(blendMode == BM_LOG3){
+        for(int i=0;i<numPrb;i++){
+            logGL[i] = Aff[i].block(0,0,3,3).log();
+            L[i] = transPart(Aff[i]);
         }
-    }else if(blendMode == 3){   // logmatrix4
-        for( int i=0;i<num;i++){
-            logAff[i] = aff[i].log();
+    }else if(blendMode == BM_LOG4){
+        for(int i=0;i<numPrb;i++){
+            logAff[i] = Aff[i].log();
         }
     }
 
     
 // transform target vertices
     // get positions
-    MPointArray pts;
-    itGeo.allPositions(pts);
-    int numPts = pts.length();
+    MPointArray Mpts;
+    itGeo.allPositions(Mpts);
+    int numPts = Mpts.length();
     if(worldMode){
         for(int j=0; j<numPts; j++ )
-            pts[j] *= localToWorldMatrix;
+            Mpts[j] *= localToWorldMatrix;
     }
+    std::vector<Vector3d> pts(numPts);
+    for(int i=0;i<numPts;i++){
+        pts[i] << Mpts[i].x, Mpts[i].y, Mpts[i].z;
+    }
+
 #pragma omp parallel for
     for(int j=0; j<numPts; j++ ){
         // weight computation
-        double sidist=0;
-        std::vector<double> idist(num);
-		Vector3d p;
-        p << pts[j].x, pts[j].y, pts[j].z;
+        std::vector<double> dist(numPrb);
 
-        for( int i=0; i<num; i++){
-            idist[i] = 1.0 / pow((p-center[i]).squaredNorm(),normExponent/2.0);
-            sidist += idist[i];
+        for( int i=0; i<numPrb; i++){
+            dist[i] = (pts[j]-probeCenter[i]).norm();
         }
-        std::vector<double> wr(num),ws(num),wl(num);
-        if(weightMode == 0){
-            for( int i=0; i<num; i++){
-                wr[i] = ws[i] = wl[i] = idist[i]/sidist;
+        std::vector<double> wr(numPrb),ws(numPrb),wl(numPrb);
+        if(weightMode == WM_INV_DISTANCE){
+            double sum=0;
+            std::vector<double> idist(numPrb);
+            for( int i=0; i<numPrb; i++){
+                idist[i] = 1.0/pow(dist[i],normExponent);
+                sum += idist[i];
             }
-        }else{
+            assert( sum > 0);
+            for( int i=0; i<numPrb; i++){
+                wr[i] = ws[i] = wl[i] = idist[i]/sum;
+            }
+        }else if(weightMode == WM_CUTOFF_DISTANCE){
+            for( int i=0; i<numPrb; i++){
+                wr[i] = ws[i] = wl[i] = (dist[i] > maxDist)
+                ? 0 : pow((maxDist-dist[i])/maxDist,normExponent);
+            }
+        }else if(weightMode == WM_DRAW){
             float val;
-            for( int i=0; i<num; i++){
-                rWeightCurveR.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+            for( int i=0; i<numPrb; i++){
+                rWeightCurveR.getValueAtPosition(dist[i]/maxDist, val );
                 wr[i] = val;
-                rWeightCurveS.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+                rWeightCurveS.getValueAtPosition(dist[i]/maxDist, val );
                 ws[i] = val;
-                rWeightCurveL.getValueAtPosition((1.0/(sqrt(idist[i])*maxDist)), val );
+                rWeightCurveL.getValueAtPosition(dist[i]/maxDist, val );
                 wl[i] = val;
             }
         }
+        Matrix4d mat;
         // blend matrix
-		Matrix4d mat=Matrix4d::Zero();
-        if(blendMode==0){
-            Matrix3d RR=Matrix3d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for( int i=0; i<num; i++){
-                RR += wr[i] * logR[i];
-                SS += ws[i] * logS[i];
-                l += wl[i] * L[i];
-            }
-            SS = expSym(SS);
+        if(blendMode == BM_SRL){
+            Matrix3d RR,SS=expSym(blendMat(logS, ws));
+            Vector3d l=blendMat(L, wl);
             if(frechetSum){
                 RR = frechetSO(R, wr);
             }else{
-                RR = expSO(RR);
+                RR = expSO(blendMat(logR, wr));
             }
-            mat = affine(SS*RR, l);
-        }else if(blendMode==1){    // rigid transformation
-            Matrix4d EE=Matrix4d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            for( int i=0; i<num; i++){
-                EE +=  wr[i] * logSE[i];
-                SS +=  ws[i] * logS[i];
-            }
+            mat = pad(SS*RR, l);
+        }else if(blendMode == BM_SES){
+            Matrix4d RR;
+            Matrix3d SS=expSym(blendMat(logS, ws));
             if(frechetSum){
-                EE = frechetSE(SE, wr);
+                RR = frechetSE(SE, wr);
             }else{
-                EE = expSE(EE);
+                RR = expSE(blendMat(logSE, wr));
             }
-            mat = affine(expSym(SS),Vector3d::Zero())*EE;
-        }else if(blendMode == 2){    //logmatrix3
-            Matrix3d G=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for( int i=0; i<num; i++){
-                G +=  wr[i] * logGL[i];
-                l += wl[i] * L[i];
-            }
-            mat = affine(G.exp(), l);
-        }else if(blendMode == 3){   // logmatrix4
-            Matrix4d A=Matrix4d::Zero();
-            for( int i=0; i<num; i++)
-                A +=  wr[i] * logAff[i];
-            mat = A.exp();
-        }else if(blendMode == 5){ // quaternion
-            Vector4d q=Vector4d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for( int i=0; i<num; i++){
-                q += wr[i] * quat[i];
-                SS += ws[i] * logS[i];
-                l += wl[i] * L[i];
-            }
-            SS = expSym(SS);
+            mat = pad(SS,Vector3d::Zero()) * RR;
+        }else if(blendMode == BM_LOG3){
+            Matrix3d RR=blendMat(logGL, wr).exp();
+            Vector3d l=blendMat(L, wl);
+            mat = pad(RR, l);
+        }else if(blendMode == BM_LOG4){
+            mat=blendMat(logAff, wr).exp();
+        }else if(blendMode == BM_QSL){
+            Vector4d q=blendQuat(quat,wr);
+            Vector3d l=blendMat(L, wl);
+            Matrix3d SS=blendMatLin(S,ws);
             Quaternion<double> Q(q);
             Matrix3d RR = Q.matrix().transpose();
-            mat = affine(SS*RR, l);
-        }else if(blendMode==10){
-            for( int i=0; i<num; i++){
-                mat += wr[i] * aff[i];
-            }
+            mat = pad(SS*RR, l);
+        }else if(blendMode == BM_AFF){
+            mat = blendMatLin(Aff,wr);
         }
         // apply matrix
-        MMatrix m;
-		for( int i=0; i<4; i++){
-			for( int k=0; k<4; k++){
-				m(i,k)=mat(i,k);
-			}
-		}
-        pts[j] *= m;
+        RowVector4d p = pad(pts[j]) * mat;
+        Mpts[j].x = p[0];
+        Mpts[j].y = p[1];
+        Mpts[j].z = p[2];
         if(worldMode)
-            pts[j] *= localToWorldMatrix.inverse();
+            Mpts[j] *= localToWorldMatrix.inverse();
     }
     // set positions
-    itGeo.setAllPositions(pts);
+    itGeo.setAllPositions(Mpts);
     return MS::kSuccess;
 }
 
@@ -257,36 +251,37 @@ MStatus probeDeformerNode::initialize()
     addAttribute(aInitMatrix);
     attributeAffects( aInitMatrix, outputGeom );
 
-    aBlendMode = eAttr.create( "blendMode", "bm", 0 );
-    eAttr.addField( "polarexp", 0 );
-    eAttr.addField( "polarexpSE", 1 );
-    eAttr.addField( "logmatrix3", 2 );
-    eAttr.addField( "logmatrix4", 3 );
-    eAttr.addField( "quaternion", 5 );
-    eAttr.addField( "linear", 10 );
-    eAttr.addField( "off", 99 );
+    aBlendMode = eAttr.create( "blendMode", "bm", BM_SRL );
+    eAttr.addField( "expSO+expSym", BM_SRL );
+    eAttr.addField( "expSE+expSym", BM_SES );
+    eAttr.addField( "logmatrix3", BM_LOG3 );
+    eAttr.addField( "logmatrix4", BM_LOG4 );
+    eAttr.addField( "quat+linear", BM_QSL );
+    eAttr.addField( "linear", BM_AFF );
+    eAttr.addField( "off", BM_OFF );
     eAttr.setStorable(true);
     addAttribute( aBlendMode );
     attributeAffects( aBlendMode, outputGeom );
 
-	aRotationConsistency = nAttr.create( "rotationConsistency", "rc", MFnNumericData::kBoolean, 0 );
+	aRotationConsistency = nAttr.create( "rotationConsistency", "rc", MFnNumericData::kBoolean, false );
     nAttr.setStorable(true);
     addAttribute( aRotationConsistency );
     attributeAffects( aRotationConsistency, outputGeom );
 
-	aFrechetSum = nAttr.create( "frechetSum", "fs", MFnNumericData::kBoolean, 0 );
+	aFrechetSum = nAttr.create( "frechetSum", "fs", MFnNumericData::kBoolean, false );
     nAttr.setStorable(true);
     addAttribute( aFrechetSum );
     attributeAffects( aFrechetSum, outputGeom );
 
-	aWorldMode = nAttr.create( "worldMode", "wrldmd", MFnNumericData::kBoolean, 0 );
+	aWorldMode = nAttr.create( "worldMode", "wrldmd", MFnNumericData::kBoolean, true );
     nAttr.setStorable(true);
     addAttribute( aWorldMode );
     attributeAffects( aWorldMode, outputGeom );
     
-    aWeightMode = eAttr.create( "weightMode", "wtm", 0 );
-    eAttr.addField( "normal", 0 );
-    eAttr.addField( "curve", 1 );
+    aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
+    eAttr.addField( "inverse", WM_INV_DISTANCE );
+    eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
+    eAttr.addField( "draw", WM_DRAW );
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );
@@ -313,11 +308,6 @@ MStatus probeDeformerNode::initialize()
     addAttribute( aWeightCurveL );
 	attributeAffects( aWeightCurveL, outputGeom );
 
-//    aBlendWeight = nAttr.create( "blendWeight", "bw", MFnNumericData::kDouble );
-//    nAttr.setKeyable( true );
-//    addAttribute( aBlendWeight );
-//    attributeAffects( aBlendWeight, outputGeom );
- 
     return MS::kSuccess;
 }
 
@@ -347,6 +337,7 @@ MStatus probeDeformerNode::accessoryNodeSetup(MDagModifier& cmd)
     rWeightCurveL.addEntries(a1,b1,c1);
     return stat;
 }
+
 
 
 // plugin initializer

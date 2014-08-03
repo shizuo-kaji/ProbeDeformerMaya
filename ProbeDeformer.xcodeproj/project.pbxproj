@@ -10,13 +10,15 @@
 		2A48F2D41920F37300AE0DAB /* StdAfx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A48F2D31920F37300AE0DAB /* StdAfx.cpp */; };
 		2A48F2DE1920F46300AE0DAB /* probeDeformer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A48F2DC1920F46300AE0DAB /* probeDeformer.cpp */; };
 		2A48F2DF1920F46300AE0DAB /* probeDeformer.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A48F2DD1920F46300AE0DAB /* probeDeformer.h */; };
-		2A48F2E11920F48500AE0DAB /* ProbeDeformer.bundle in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2A48F2CE1920F37300AE0DAB /* ProbeDeformer.bundle */; };
-		2A48F2E51920F66D00AE0DAB /* affinelib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A48F2E21920F65E00AE0DAB /* affinelib.h */; };
+		2A48F2E11920F48500AE0DAB /* probeDeformer.bundle in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2A48F2CE1920F37300AE0DAB /* probeDeformer.bundle */; };
 		2A48F2EF1920F68100AE0DAB /* StdAfx.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A48F2EE1920F68100AE0DAB /* StdAfx.cpp */; };
 		2A48F2F71920F6A000AE0DAB /* probeDeformerARAP.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A48F2F51920F6A000AE0DAB /* probeDeformerARAP.cpp */; };
 		2A48F2F81920F6A000AE0DAB /* probeDeformerARAP.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A48F2F61920F6A000AE0DAB /* probeDeformerARAP.h */; };
-		2A48F2F91920F6AD00AE0DAB /* affinelib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2A48F2E21920F65E00AE0DAB /* affinelib.h */; };
-		2A48F2FB1920F6F600AE0DAB /* ProbeDeformerARAP.bundle in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2A48F2EA1920F68100AE0DAB /* ProbeDeformerARAP.bundle */; };
+		2A48F2FB1920F6F600AE0DAB /* probeDeformerARAP.bundle in CopyFiles */ = {isa = PBXBuildFile; fileRef = 2A48F2EA1920F68100AE0DAB /* probeDeformerARAP.bundle */; };
+		2AD5569E198EAB49001F79B2 /* affinelib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD5569C198EAB49001F79B2 /* affinelib.h */; };
+		2AD5569F198EAB49001F79B2 /* affinelib.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD5569C198EAB49001F79B2 /* affinelib.h */; };
+		2AD556A0198EAB49001F79B2 /* tetrise.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD5569D198EAB49001F79B2 /* tetrise.h */; };
+		2AD556A1198EAB49001F79B2 /* tetrise.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD5569D198EAB49001F79B2 /* tetrise.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -26,7 +28,7 @@
 			dstPath = "/Users/Shared/Autodesk/maya/plug-ins";
 			dstSubfolderSpec = 0;
 			files = (
-				2A48F2E11920F48500AE0DAB /* ProbeDeformer.bundle in CopyFiles */,
+				2A48F2E11920F48500AE0DAB /* probeDeformer.bundle in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -36,28 +38,32 @@
 			dstPath = "/Users/Shared/Autodesk/maya/plug-ins";
 			dstSubfolderSpec = 0;
 			files = (
-				2A48F2FB1920F6F600AE0DAB /* ProbeDeformerARAP.bundle in CopyFiles */,
+				2A48F2FB1920F6F600AE0DAB /* probeDeformerARAP.bundle in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		2A48F2CE1920F37300AE0DAB /* ProbeDeformer.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = ProbeDeformer.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		2A35629A198A2D43002AA823 /* ui_probeDeformer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = ui_probeDeformer.py; path = ../../Maya/plugin_deformer/ui_probeDeformer.py; sourceTree = "<group>"; };
+		2A35629C198CED6E002AA823 /* probeDeformerPy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = probeDeformerPy.py; path = ../../Maya/plugin_deformer/probeDeformerPy.py; sourceTree = "<group>"; };
+		2A35629D198CED76002AA823 /* probeLocator.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = probeLocator.py; path = ../../Maya/plugin_deformer/probeLocator.py; sourceTree = "<group>"; };
+		2A48F2CE1920F37300AE0DAB /* probeDeformer.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = probeDeformer.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A48F2D31920F37300AE0DAB /* StdAfx.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StdAfx.cpp; sourceTree = "<group>"; };
 		2A48F2D51920F37300AE0DAB /* StdAfx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StdAfx.h; sourceTree = "<group>"; };
 		2A48F2D61920F37300AE0DAB /* mayaHeaders.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mayaHeaders.h; sourceTree = "<group>"; };
 		2A48F2DC1920F46300AE0DAB /* probeDeformer.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = probeDeformer.cpp; sourceTree = "<group>"; };
 		2A48F2DD1920F46300AE0DAB /* probeDeformer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = probeDeformer.h; sourceTree = "<group>"; };
-		2A48F2E21920F65E00AE0DAB /* affinelib.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = affinelib.h; sourceTree = "<group>"; };
 		2A48F2E31920F65E00AE0DAB /* LICENSE */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
 		2A48F2E41920F65E00AE0DAB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
-		2A48F2EA1920F68100AE0DAB /* ProbeDeformerARAP.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = ProbeDeformerARAP.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
+		2A48F2EA1920F68100AE0DAB /* probeDeformerARAP.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = probeDeformerARAP.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A48F2EE1920F68100AE0DAB /* StdAfx.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = StdAfx.cpp; sourceTree = "<group>"; };
 		2A48F2F01920F68100AE0DAB /* StdAfx.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = StdAfx.h; sourceTree = "<group>"; };
 		2A48F2F11920F68100AE0DAB /* mayaHeaders.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = mayaHeaders.h; sourceTree = "<group>"; };
 		2A48F2F51920F6A000AE0DAB /* probeDeformerARAP.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = probeDeformerARAP.cpp; sourceTree = "<group>"; };
 		2A48F2F61920F6A000AE0DAB /* probeDeformerARAP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = probeDeformerARAP.h; sourceTree = "<group>"; };
+		2AD5569C198EAB49001F79B2 /* affinelib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = affinelib.h; path = ../affinelib.h; sourceTree = "<group>"; };
+		2AD5569D198EAB49001F79B2 /* tetrise.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tetrise.h; path = ../tetrise.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -81,7 +87,11 @@
 		2A48F2C51920F37300AE0DAB = {
 			isa = PBXGroup;
 			children = (
-				2A48F2E21920F65E00AE0DAB /* affinelib.h */,
+				2AD5569C198EAB49001F79B2 /* affinelib.h */,
+				2AD5569D198EAB49001F79B2 /* tetrise.h */,
+				2A35629D198CED76002AA823 /* probeLocator.py */,
+				2A35629C198CED6E002AA823 /* probeDeformerPy.py */,
+				2A35629A198A2D43002AA823 /* ui_probeDeformer.py */,
 				2A48F2E31920F65E00AE0DAB /* LICENSE */,
 				2A48F2E41920F65E00AE0DAB /* README.md */,
 				2A48F2D01920F37300AE0DAB /* ProbeDeformer */,
@@ -93,8 +103,8 @@
 		2A48F2CF1920F37300AE0DAB /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				2A48F2CE1920F37300AE0DAB /* ProbeDeformer.bundle */,
-				2A48F2EA1920F68100AE0DAB /* ProbeDeformerARAP.bundle */,
+				2A48F2CE1920F37300AE0DAB /* probeDeformer.bundle */,
+				2A48F2EA1920F68100AE0DAB /* probeDeformerARAP.bundle */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -131,7 +141,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A48F2DF1920F46300AE0DAB /* probeDeformer.h in Headers */,
-				2A48F2E51920F66D00AE0DAB /* affinelib.h in Headers */,
+				2AD5569E198EAB49001F79B2 /* affinelib.h in Headers */,
+				2AD556A0198EAB49001F79B2 /* tetrise.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,16 +151,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A48F2F81920F6A000AE0DAB /* probeDeformerARAP.h in Headers */,
-				2A48F2F91920F6AD00AE0DAB /* affinelib.h in Headers */,
+				2AD5569F198EAB49001F79B2 /* affinelib.h in Headers */,
+				2AD556A1198EAB49001F79B2 /* tetrise.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXHeadersBuildPhase section */
 
 /* Begin PBXNativeTarget section */
-		2A48F2CD1920F37300AE0DAB /* ProbeDeformer */ = {
+		2A48F2CD1920F37300AE0DAB /* probeDeformer */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2A48F2D91920F37300AE0DAB /* Build configuration list for PBXNativeTarget "ProbeDeformer" */;
+			buildConfigurationList = 2A48F2D91920F37300AE0DAB /* Build configuration list for PBXNativeTarget "probeDeformer" */;
 			buildPhases = (
 				2A48F2CA1920F37300AE0DAB /* Sources */,
 				2A48F2CB1920F37300AE0DAB /* Frameworks */,
@@ -160,14 +172,14 @@
 			);
 			dependencies = (
 			);
-			name = ProbeDeformer;
+			name = probeDeformer;
 			productName = ProbeDeformer;
-			productReference = 2A48F2CE1920F37300AE0DAB /* ProbeDeformer.bundle */;
+			productReference = 2A48F2CE1920F37300AE0DAB /* probeDeformer.bundle */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
-		2A48F2E91920F68100AE0DAB /* ProbeDeformerARAP */ = {
+		2A48F2E91920F68100AE0DAB /* probeDeformerARAP */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2A48F2F21920F68100AE0DAB /* Build configuration list for PBXNativeTarget "ProbeDeformerARAP" */;
+			buildConfigurationList = 2A48F2F21920F68100AE0DAB /* Build configuration list for PBXNativeTarget "probeDeformerARAP" */;
 			buildPhases = (
 				2A48F2E61920F68100AE0DAB /* Sources */,
 				2A48F2E71920F68100AE0DAB /* Frameworks */,
@@ -178,9 +190,9 @@
 			);
 			dependencies = (
 			);
-			name = ProbeDeformerARAP;
+			name = probeDeformerARAP;
 			productName = ProbeDeformerARAP;
-			productReference = 2A48F2EA1920F68100AE0DAB /* ProbeDeformerARAP.bundle */;
+			productReference = 2A48F2EA1920F68100AE0DAB /* probeDeformerARAP.bundle */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
 /* End PBXNativeTarget section */
@@ -204,8 +216,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				2A48F2CD1920F37300AE0DAB /* ProbeDeformer */,
-				2A48F2E91920F68100AE0DAB /* ProbeDeformerARAP */,
+				2A48F2CD1920F37300AE0DAB /* probeDeformer */,
+				2A48F2E91920F68100AE0DAB /* probeDeformerARAP */,
 			);
 		};
 /* End PBXProject section */
@@ -413,6 +425,7 @@
 					MAC_PLUGIN,
 					_BOOL,
 					REQUIRE_IOSTREAM,
+					DEBUG,
 				);
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
@@ -496,7 +509,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2A48F2D91920F37300AE0DAB /* Build configuration list for PBXNativeTarget "ProbeDeformer" */ = {
+		2A48F2D91920F37300AE0DAB /* Build configuration list for PBXNativeTarget "probeDeformer" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2A48F2DA1920F37300AE0DAB /* Debug */,
@@ -505,7 +518,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2A48F2F21920F68100AE0DAB /* Build configuration list for PBXNativeTarget "ProbeDeformerARAP" */ = {
+		2A48F2F21920F68100AE0DAB /* Build configuration list for PBXNativeTarget "probeDeformerARAP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				2A48F2F31920F68100AE0DAB /* Debug */,

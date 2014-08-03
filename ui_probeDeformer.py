@@ -14,23 +14,21 @@
 import maya.cmds as cmds
 import pymel.core as pm
 
-try:
-    cmds.loadPlugin("probeDeformer.py")
-    cmds.loadPlugin("ProbeDeformer")
-    cmds.loadPlugin("ProbeDeformerARAP")
-    cmds.loadPlugin("probeLocator.py")
-except:
-    print("Plugin already loaded")
+deformerTypes = ["probeDeformer","probeDeformerARAP","probeDeformerPy","probeLocator"]
 
+for type in deformerTypes:
+    try:
+        cmds.loadPlugin(type)
+    except:
+        print("Plugin %s already loaded" %(type))
 
 ## prepare interface
 class UI_ProbeDeformer:
     uiID = "ProbeDeformer"
     title = "ProbeDeformerPlugin"
-    
-    deformers = [0,1,2]
-    probes = []
-    
+    deformers = []
+    probes = {}
+
     ## Constructor
     def __init__(self):
         if pm.window(self.uiID, exists=True):
@@ -38,104 +36,62 @@ class UI_ProbeDeformer:
         win = pm.window(self.uiID, title=self.title, menuBar=True)
         with win:
             pm.menu( label='Create', tearOff=True )
-            pm.menuItem( label="Probe", c=pm.Callback( self.initPlugin, "probe") )
-            pm.menuItem( label="Probe ARAP", c=pm.Callback( self.initPlugin, "probeDeformerARAP") )
-            pm.menuItem( label="Probe Python", c=pm.Callback( self.initPlugin, "probePy") )
-            pm.menuItem( label="Probe Locator", c=pm.Callback( self.createProbeLocator ) )
+            for type in deformerTypes:
+                pm.menuItem( label=type, c=pm.Callback( self.initPlugin, type) )
             self._parentLayout = pm.columnLayout( adj=True )
             with self._parentLayout:
                 self.createUISet()
-    
+
     def createUISet(self):
         self._childLayout = pm.columnLayout( adj=True )
         with self._childLayout:
-            self.deformers[0] = pm.ls(type="probe")
-            self.probes = [pm.listConnections(self.deformers[0][i].pm) for i in range(len(self.deformers[0]))]
-            for i in range(len(self.deformers[0])):
-                frameLayout = pm.frameLayout( label=self.deformers[0][i].name(), collapsable = True)
+            self.deformers = [pm.ls(type=deformerTypes[i]) for i in range(len(deformerTypes))]
+            for i in range(len(deformerTypes)):
+                for node in self.deformers[i]:
+                    self.probes[node] = pm.listConnections(node.pm)
+            # "probeDeformer" specific
+            for node in self.deformers[0]:
+                frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
-                    with pm.rowLayout(numberOfColumns=6) :
-                        pm.text(l='Weight Curve R')
-                        pm.gradientControl( at='%s.wcr' % self.deformers[0][i].name() )
-                        pm.text(l='S')
-                        pm.gradientControl( at='%s.wcs' % self.deformers[0][i].name() )
-                        pm.text(l='L')
-                        pm.gradientControl( at='%s.wcl' % self.deformers[0][i].name() )
-                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+4) :
-                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 0, i))
-                        pm.attrControlGrp( label="blend mode", attribute= self.deformers[0][i].bm)
-                        pm.button( l="Add", c=pm.Callback( self.addProbe, 0, i) )
-                        pm.text(l="Press to reset")
-                        for j in range(len(self.probes[i])):
-                            pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.resetProbe, 0, i, j) )
-                    with pm.rowLayout(numberOfColumns=4) :
-                        pm.attrControlGrp( label="world mode", attribute= self.deformers[0][i].worldMode)
-                        pm.attrControlGrp( label="rotation consistency", attribute= self.deformers[0][i].rc)
-                        pm.attrControlGrp( label="Frechet sum", attribute= self.deformers[0][i].fs)
-                    with pm.rowLayout(numberOfColumns=3) :
-                        pm.attrControlGrp( label="Weight mode", attribute= self.deformers[0][i].wtm)
-                        pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=self.deformers[0][i].md)
-                        pm.attrControlGrp( label="normExponent", attribute=self.deformers[0][i].ne)
-            # probe ARAP
-            self.deformers[1] = pm.ls(type="probeDeformerARAP")
-            self.probes = [pm.listConnections(self.deformers[1][i].pm) for i in range(len(self.deformers[1]))]
-            for i in range(len(self.deformers[1])):
-                frameLayout = pm.frameLayout( label=self.deformers[1][i].name(), collapsable = True)
+                    self.createRamp(node)
+                    self.createCommonAttr(node)
+                    with pm.rowLayout(numberOfColumns=1) :
+                        pm.attrControlGrp( label="Frechet sum", attribute= node.fs)
+            # "probeDeformerARAP" specific
+            for node in self.deformers[1]:
+                frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
-                    with pm.rowLayout(numberOfColumns=6) :
-                        pm.text(l='Weight Curve R')
-                        pm.gradientControl( at='%s.wcr' % self.deformers[1][i].name() )
-                        pm.text(l='S')
-                        pm.gradientControl( at='%s.wcs' % self.deformers[1][i].name() )
-                        pm.text(l='L')
-                        pm.gradientControl( at='%s.wcl' % self.deformers[1][i].name() )
-                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+4) :
-                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 1, i))
-                        pm.attrControlGrp( label="blend mode", attribute= self.deformers[1][i].bm)
-                        pm.button( l="Add", c=pm.Callback( self.addProbe, 1, i) )
-                        pm.text(l="Click to delete")
-                        for j in range(len(self.probes[i])):
-                            pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.deleteProbe, 1, i, j) )
+                    self.createRamp(node)
+                    self.createCommonAttr(node)
                     with pm.rowLayout(numberOfColumns=3) :
-                        pm.attrControlGrp( label="world mode", attribute= self.deformers[1][i].worldMode)
-                        pm.attrControlGrp( label="rotation consistency", attribute= self.deformers[1][i].rc)
-                        pm.attrControlGrp( label="normExponent", attribute=self.deformers[1][i].ne)
-                    with pm.rowLayout(numberOfColumns=2) :
-                        pm.attrControlGrp( label="translationWeight", attribute=self.deformers[1][i].tw)
-                        pm.attrControlGrp( label="constraintWeight", attribute=self.deformers[1][i].cw)
-                    with pm.rowLayout(numberOfColumns=2) :
-                        pm.attrControlGrp( label="Weight mode", attribute= self.deformers[1][i].wtm)
-                        pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=self.deformers[1][i].md)
-            # probe Python
-            self.deformers[2] = pm.ls(type="probePy")
-            self.probes = [pm.listConnections(self.deformers[2][i].pm) for i in range(len(self.deformers[2]))]
-            for i in range(len(self.deformers[2])):
-                frameLayout = pm.frameLayout( label=self.deformers[2][i].name(), collapsable = True)
+                        pm.button( l="Set supervisor", c=pm.Callback( self.setSupervisor, node))
+                        pm.attrControlGrp( label="tet mode", attribute= node.tm)
+                        pm.attrFieldSliderGrp( label="translation weight", min=0.0, max=1.0, attribute=node.tw)
+                    with pm.rowLayout(numberOfColumns=3) :
+                        pm.attrControlGrp( label="constraint mode", attribute= node.ctm)
+                        pm.attrFieldSliderGrp( label="constraint weight", min=0.001, max=1000, attribute=node.cw)
+                        pm.attrFieldSliderGrp(label="constraint radius", min=0.001, max=10.0, attribute=node.cr)
+                    with pm.rowLayout(numberOfColumns=3) :
+                        pm.attrFieldSliderGrp( label="iteration", min=1, max=20, attribute=node.it)
+                        pm.attrControlGrp( label="visualisation", attribute= node.vm)
+                        pm.attrFieldSliderGrp( label="visualisation multiplier", min=0.001, max=1000, attribute=node.vmp)
+                    with pm.rowLayout(numberOfColumns=3) :
+                        pm.attrControlGrp( label="stiffness mode", attribute=node.stiffnessMode)
+
+            # "probeDeformerPy" specific
+            for node in self.deformers[2]:
+                frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
-                    with pm.rowLayout(numberOfColumns=6) :
-                        pm.text(l='Weight Curve R')
-                        pm.gradientControl( at='%s.wcr' % self.deformers[2][i].name() )
-                        pm.text(l='S')
-                        pm.gradientControl( at='%s.wcs' % self.deformers[2][i].name() )
-                        pm.text(l='L')
-                        pm.gradientControl( at='%s.wcl' % self.deformers[2][i].name() )
-                    with pm.rowLayout(numberOfColumns=len(self.probes[i])+3) :
-                        pm.button( l="Del", c=pm.Callback( self.deleteNode, 2, i ))
-                        pm.button( l="Add", c=pm.Callback( self.addProbe, 2, i) )
-                        pm.text(l="Press to reset")
-                        for j in range(len(self.probes[i])):
-                            pm.button( l=self.probes[i][j].name(), c=pm.Callback( self.resetProbe, 2, i, j) )
-                    with pm.rowLayout(numberOfColumns=3) :
-                        pm.attrControlGrp( label="blend mode", attribute= self.deformers[2][i].bm)
-                        pm.attrControlGrp( label="trans mode", attribute= self.deformers[2][i].tm)
-                        pm.attrControlGrp( label="rotation consistency", attribute= self.deformers[2][i].rc)
-                    with pm.rowLayout(numberOfColumns=3) :
-                        pm.attrControlGrp( label="Weight mode", attribute= self.deformers[2][i].wtm)
-                        pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=self.deformers[2][i].md)
-                        pm.attrControlGrp( label="normExponent", attribute=self.deformers[2][i].ne)
-    
+                    self.createRamp(node)
+                    self.createCommonAttr(node)
+                    with pm.rowLayout(numberOfColumns=1) :
+                        pm.attrControlGrp( label="translation mode", attribute= node.tm)
+
     # create deformer node and connection
     def initPlugin(self, deformerType):
+        if deformerType=="probeLocator":
+            cmds.createNode('probeLocator')
+            return
         # get transform nodes for the selected objects
         meshes = pm.selected(tr=1)
         if not meshes:
@@ -150,38 +106,69 @@ class UI_ProbeDeformer:
         self.updateUI()
 
     # delete deformer node
-    def deleteNode(self,type,i):
-        cmds.delete(self.deformers[type][i].name())
+    def deleteNode(self,node):
+        cmds.delete(node.name())
+        self.updateUI()
+
+    # set selected shapes as supervised mesh
+    def setSupervisor(self,node):
+        meshes = pm.selected(tr=1)
+        if not meshes:
+            return
+        for i in range(len(meshes)):
+            shape=meshes[i].getShapes()[0]
+            cmds.connectAttr(shape+".outMesh", node.name()+".supervisedMesh[%s]" %(i), force=True)
         self.updateUI()
 
     # set the selected probes's current matrix as the initial matrix
-    def resetProbe(self,type,i,j):
-        self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
-        self.deformers[type][i].ipm[j].set(self.probes[i][j].worldMatrix.get())
-    
-    # set the selected probes's current matrix as the initial matrix
-    def deleteProbe(self,type,i,j):
-        self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
-    #TODO
+    def resetProbe(self,node,j):
+        node.ipm[j].set(self.probes[node][j].worldMatrix.get())
 
-    # add a new probe
-    def addProbe(self,type,i):
-        self.probes = [pm.listConnections(self.deformers[type][i].pm) for i in range(len(self.deformers[type]))]
-        numOldProbes = len(self.probes[i])
+    # delete a probe (not working now)
+    def deleteProbe(self,node,j):
+        cmds.deleteAttr( [node+".pm[%s]" %(j), node+".ipm[%s]" %(j) ] )
+        self.updateUI()
+
+    # add selected transform as a new probe
+    def addProbe(self,node):
+        numOldProbes = len(self.probes[node])
         newProbes = pm.selected(tr=1)
-        self.probes[i].extend(newProbes)
-        for j in range(numOldProbes,len(self.probes[i])):
-            self.deformers[type][i].ipm[j].set(self.probes[i][j].worldMatrix.get())
-        for j in range(numOldProbes,len(self.probes[i])):
-            cmds.connectAttr(self.probes[i][j]+".worldMatrix", self.deformers[type][i]+".pm[%s]" %(j))
+        self.probes[node].extend(newProbes)
+        for j in range(numOldProbes,len(self.probes[node])):
+            node.ipm[j].set(self.probes[node][j].worldMatrix.get())
+        for j in range(numOldProbes,len(self.probes[node])):
+            cmds.connectAttr(self.probes[node][j]+".worldMatrix", node+".pm[%s]" %(j))
         self.updateUI()
-    
-    # create new probe locator
-    def createProbeLocator(self):
-        cmds.createNode('probeLocator')
-    
+
     # redraw UI
     def updateUI(self):
         pm.deleteUI( self._childLayout )
         pm.setParent(self._parentLayout)
         self.createUISet()
+
+    # create common attributes
+    def createRamp(self,node):
+        with pm.rowLayout(numberOfColumns=6) :
+            pm.text(l='Weight Curve R')
+            pm.gradientControl( at='%s.wcr' % node.name() )
+            pm.text(l='S')
+            pm.gradientControl( at='%s.wcs' % node.name() )
+            pm.text(l='L')
+            pm.gradientControl( at='%s.wcl' % node.name() )
+
+    def createCommonAttr(self,node):
+        with pm.rowLayout(numberOfColumns=len(self.probes[node])+3) :
+            pm.button( l="Delete deformer", c=pm.Callback( self.deleteNode, node))
+            pm.button( l="Add selection to probes", c=pm.Callback( self.addProbe, node) )
+            pm.text(l="delete probe")
+            for j in range(len(self.probes[node])):
+                pm.button( l=self.probes[node][j].name(), c=pm.Callback( self.deleteProbe, node, j) )
+        with pm.rowLayout(numberOfColumns=3) :
+            pm.attrControlGrp( label="blend mode", attribute= node.bm)
+            #            pm.attrControlGrp( label="world mode", attribute= node.worldMode)
+            pm.attrControlGrp( label="rotation consistency", attribute= node.rc)
+        with pm.rowLayout(numberOfColumns=3) :
+            pm.attrControlGrp( label="Weight mode", attribute= node.wtm)
+            pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=node.md)
+            pm.attrControlGrp( label="normExponent", attribute=node.ne)
+

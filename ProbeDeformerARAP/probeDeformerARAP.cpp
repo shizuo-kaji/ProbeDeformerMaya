@@ -8,15 +8,48 @@
  * @author Shizuo KAJI
  *
  * @section Shape is deformed according to the blended affine transformation and ARAP energy.
- * The closest point on the mesh is constraint by the probe.
  */
 
 
 #include "StdAfx.h"
 #include "probeDeformerARAP.h"
 
+// parametrisation mode
+#define BM_SRL 0
+#define BM_SES 1
+#define BM_LOG3 3
+#define BM_LOG4 4
+#define BM_QSL 5
+#define BM_AFF 10
+#define BM_OFF -1
+
+// weight mode
+#define WM_INV_DISTANCE 0
+#define WM_CUTOFF_DISTANCE 1
+#define WM_DRAW 2
+
+// constraint mode
+#define CONSTRAINT_NEIBOUR 0
+#define CONSTRAINT_CLOSEST 1
+
+// stiffness mode
+#define SM_NONE 0
+#define SM_PAINT 1
+#define SM_LEARN 2
+
+// visualisation mode
+#define VM_OFF 0
+#define VM_ENERGY 1
+#define VM_EFFECT 2
+#define VM_CONSTRAINT 3
+#define VM_STIFFNESS 4
+
+// error codes
+#define ERROR_ARAP_PRECOMPUTE 1
+
 using namespace Eigen;
 using namespace AffineLib;
+using namespace Tetrise;
 
 MTypeId probeDeformerARAPNode::id( 0x00000104 );
 MString probeDeformerARAPNode::nodeName( "probeDeformerARAP" );
@@ -24,6 +57,7 @@ MObject probeDeformerARAPNode::aMatrix;
 MObject probeDeformerARAPNode::aInitMatrix;
 MObject probeDeformerARAPNode::aWorldMode;
 MObject probeDeformerARAPNode::aBlendMode;
+MObject probeDeformerARAPNode::aTetMode;
 MObject probeDeformerARAPNode::aWeightMode;
 MObject probeDeformerARAPNode::aWeightCurveR;
 MObject probeDeformerARAPNode::aWeightCurveS;
@@ -34,6 +68,13 @@ MObject probeDeformerARAPNode::aConstraintWeight;
 MObject probeDeformerARAPNode::aRotationConsistency;
 MObject probeDeformerARAPNode::aFrechetSum;
 MObject probeDeformerARAPNode::aNormExponent;
+MObject probeDeformerARAPNode::aIteration;
+MObject probeDeformerARAPNode::aConstraintRadius;
+MObject probeDeformerARAPNode::aConstraintMode;
+MObject probeDeformerARAPNode::aVisualisationMultiplier;
+MObject probeDeformerARAPNode::aVisualisationMode;
+MObject probeDeformerARAPNode::aSupervisedMesh;
+MObject probeDeformerARAPNode::aStiffness;
 
 void* probeDeformerARAPNode::creator() { return new probeDeformerARAPNode; }
  
@@ -44,83 +85,197 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     MThreadUtils::syncNumOpenMPThreads();    // for OpenMP
     
     bool new_worldMode = data.inputValue( aWorldMode ).asBool();
+    short new_stiffnessMode = data.inputValue( aStiffness ).asShort();
     short blendMode = data.inputValue( aBlendMode ).asShort();
+    short new_tetMode = data.inputValue( aTetMode ).asShort();
+    short numIter = data.inputValue( aIteration ).asShort();
+    short new_constraintMode = data.inputValue( aConstraintMode ).asShort();
+    short visualisationMode = data.inputValue( aVisualisationMode ).asShort();
     double new_transWeight = data.inputValue( aTransWeight ).asDouble();
     double new_constraintWeight = data.inputValue( aConstraintWeight ).asDouble();
     double new_normExponent = data.inputValue( aNormExponent ).asDouble();
+    double new_constraintRadius = data.inputValue( aConstraintRadius ).asDouble();
+    double visualisationMultiplier = data.inputValue(aVisualisationMultiplier).asDouble();
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
     int new_numPrb = hMatrixArray.elementCount();
-    if(new_numPrb != hInitMatrixArray.elementCount())
+    // avoid unnecessary ARAP computation
+    if(isError>0){
+        return MS::kFailure;
+    }else if(new_numPrb != hInitMatrixArray.elementCount() || new_numPrb == 0 || blendMode == BM_OFF){
         return MS::kSuccess;
+    }
     // read matrices
     std::vector<Matrix4d> initMatrix(new_numPrb), matrix(new_numPrb);
     readMatrixArray(hInitMatrixArray, initMatrix);
     readMatrixArray(hMatrixArray, matrix);
-    // new probe connection
-    if(numPts == 0 || blendMode == 99 || normExponent != new_normExponent || transWeight != new_transWeight
-       || new_worldMode != worldMode || constraintWeight != new_constraintWeight || numPrb != new_numPrb)
-    {
-        numPrb = new_numPrb;
+    MPointArray Mpts;
+    itGeo.allPositions(Mpts);
+    int numPts = Mpts.length();
+    int numTet = (int)tetList.size()/4;
+    // change tet mode or new probe connection
+    if(tetMode != new_tetMode || constraintWeight != new_constraintWeight ||
+       new_worldMode != worldMode || transWeight != new_transWeight || numPrb != new_numPrb
+       || normExponent != new_normExponent || constraintRadius != new_constraintRadius
+       || constraintMode != new_constraintMode || stiffnessMode != new_stiffnessMode){
+        // set new values
+        tetMode = new_tetMode;
         worldMode = new_worldMode;
         transWeight = new_transWeight;
         constraintWeight = new_constraintWeight;
+        numPrb = new_numPrb;
         normExponent = new_normExponent;
-        // probe position
-        probeCenter.resize(numPrb);
-        for(int i=0;i<numPrb;i++)
-            probeCenter[i] << initMatrix[i](3,0),initMatrix[i](3,1),initMatrix[i](3,2);
+        constraintRadius = new_constraintRadius;
+        constraintMode = new_constraintMode;
+        stiffnessMode = new_stiffnessMode;
         // read mesh data
         MArrayDataHandle hInput = data.outputArrayValue( input, &status );
         CHECK_MSTATUS_AND_RETURN_IT( status );
         status = hInput.jumpToElement( mIndex );
         CHECK_MSTATUS_AND_RETURN_IT( status );
         MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
-        MFnMesh inputMesh(oInputGeom);
-        inputMesh.getPoints( pts );
-		numPts=pts.length();
+        MFnMesh inputGeom(oInputGeom);
+        // load points list
         if(worldMode){
             for(int j=0; j<numPts; j++ )
-                pts[j] *= localToWorldMatrix;
+                Mpts[j] *= localToWorldMatrix;
         }
-        // prepare list of facial tetrahedra
-        MIntArray count;
-        inputMesh.getTriangles( count, triangles );
-		numTet=triangles.length()/3;
-		std::vector<Matrix4d> P(numTet);
+        pts.resize(numPts);
+        for(int i=0;i<numPts;i++){
+            pts[i] << Mpts[i].x, Mpts[i].y, Mpts[i].z;
+        }
+        // face list
+        MIntArray count, triangles;
+        inputGeom.getTriangles( count, triangles );
+        int numFaces = triangles.length()/3;
+        faceList.resize(3*numFaces);
+        for(int i=0;i<3*numFaces;i++){
+            faceList[i]=triangles[i];
+        }
+        // vertex list
+        MItMeshPolygon iter(oInputGeom);
+        MIntArray faceVertices;
+        vertexList.resize(numPts);
+        for(int i=0;i<numPts;i++){
+            vertexList[i].index = i;
+            vertexList[i].connectedTriangles.clear();
+        }
+        for( ; ! iter.isDone(); iter.next()){
+            status = iter.getVertices(faceVertices);
+            int count = (int) faceVertices.length();
+            for(int j=0;j<count;j++){
+                vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+1)%count]);
+                vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+count-1)%count]);
+            }
+        }
+        // set tetrahedra
+		std::vector<Matrix4d> P;
+        makeEdgeList(faceList, edgeList);
+        makeTetList(tetMode, numPts, faceList, edgeList, vertexList, tetList);
+        tetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        dim = removeDegenerate(tetMode, numPts, tetList, faceList, edgeList, vertexList, P);
+        tetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        makeTetCenterList(tetMode, pts, tetList, tetCenter);
+        numTet = (int)tetList.size()/4;
         PI.resize(numTet);
-        tetCenter.resize(numTet);
-        tetMatrixC(pts, triangles, P, tetCenter);
-        // compute distance between probe and vertex
-        sidist.resize(numTet);
-        idist.resize(numTet);
-        for(int j=0;j<numTet;j++){
-            sidist[j]=0;
-            idist[j].resize(numPrb);
-            for(int i=0; i<numPrb; i++){
-                idist[j][i] = 1.0 / pow((tetCenter[j]-probeCenter[i]).squaredNorm(),normExponent/2.0);
-                sidist[j] += idist[j][i];
-            }
-        }
-        // find constraint points
-        if(numTet<numPrb) return(MS::kSuccess);
-        constraintTet.resize(numPrb);
-        constraintVector.resize(numPrb);
-        for(int i=0;i<numPrb;i++){
-            constraintTet[i] = 0;
-            for(int j=1;j<numTet;j++){
-                if(idist[j][i] > idist[constraintTet[i]][i]){
-                    constraintTet[i] = j;
-                }
-            }
-            constraintVector[i] << tetCenter[constraintTet[i]](0), tetCenter[constraintTet[i]](1), tetCenter[constraintTet[i]](2), 1.0;
-        }
-        // precompute arap matrix
 		for(int i=0;i<numTet;i++){
-            assert(P[i].determinant()!=0);
 			PI[i] = P[i].inverse();
         }
-        arapHI(PI, triangles);
+
+        // load painted weights
+        if(stiffnessMode == SM_PAINT) {
+            std::vector<double> ptsWeight(numPts);
+            for (int i=0; !itGeo.isDone(); itGeo.next()){
+                double w=weightValue(data, mIndex, itGeo.index());
+                ptsWeight[i++] = (w>EPSILON) ? w : EPSILON;
+            }
+            makeWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight, tetWeight);
+        }else if(stiffnessMode == SM_LEARN) {
+            tetWeight.resize(numTet);
+            std::vector<double> tetEnergy(numTet,0);
+            MArrayDataHandle hSupervisedMesh = data.inputArrayValue(aSupervisedMesh);
+            int numSupervisedMesh = hSupervisedMesh.elementCount();
+            for(int j=0;j<numSupervisedMesh;j++){
+                hSupervisedMesh.jumpToElement(j);
+                MFnMesh mesh(hSupervisedMesh.inputValue().asMesh());
+                MPointArray Mspts;
+                mesh.getPoints( Mspts );
+                if(numPts != Mspts.length()){
+                    MGlobal::displayInfo("incompatible mesh");
+                    return MS::kFailure;
+                }
+                std::vector<Vector3d> spts(numPts);
+                for(int i=0;i<numPts;i++){
+                    spts[i] << Mspts[i].x, Mspts[i].y, Mspts[i].z;
+                }
+                std::vector<Matrix4d> Q(numTet);
+                tetMatrix(tetMode, spts, tetList, faceList, edgeList, vertexList, Q);
+                Matrix3d S,R;
+                for(int i=0;i<numTet;i++)  {
+                    polarHigham((PI[i]*Q[i]).block(0,0,3,3), S, R);
+                    tetEnergy[i] += (S-Matrix3d::Identity()).squaredNorm();
+                }
+            }
+            // compute weight (stiffness)
+            double max_energy = *std::max_element(tetEnergy.begin(), tetEnergy.end());
+            for(int i=0;i<numTet;i++)  {
+                double w = 1.0 - tetEnergy[i]/(max_energy+EPSILON);
+                tetWeight[i] = w*w;
+            }
+        }else{
+            tetWeight.clear();
+            tetWeight.resize(numTet,1.0);
+        }
+
+        // probe position
+        probeCenter.resize(numPrb);
+        for(int i=0;i<numPrb;i++)
+            probeCenter[i] << initMatrix[i](3,0),initMatrix[i](3,1),initMatrix[i](3,2);
+        
+        // compute distance between probe and tetrahedra
+        dist.resize(numTet);
+        for(int j=0;j<numTet;j++){
+            dist[j].resize(numPrb);
+            for(int i=0; i<numPrb; i++){
+                dist[j][i] = (tetCenter[j]-probeCenter[i]).norm();
+            }
+        }
+
+        // find constraint points
+        std::vector< std::vector<double> > d(numPrb);
+        std::vector<int> closest(numPrb);
+        constraint.resize(numPrb);
+        for(int i=0;i<numPrb;i++){
+            constraint[i].clear();
+            d[i].resize(numPts);
+            closest[i] = 0;
+            double min_d = HUGE_VAL;
+            for(int j=0;j<numPts;j++){
+                d[i][j]=(pts[j]-probeCenter[i]).norm();
+                if( d[i][j] < min_d){
+                    min_d = d[i][j];
+                    closest[i] = j;
+                }
+            }
+        }
+        if( constraintMode == CONSTRAINT_NEIBOUR ){
+            for(int i=0;i<numPrb;i++){
+                for(int j=0;j<numPts;j++){
+                    if(d[i][j]<constraintRadius){
+                        constraint[i][j] = pow((constraintRadius-d[i][j])/constraintRadius,normExponent);
+                    }
+                }
+            }
+        }else if( constraintMode == CONSTRAINT_CLOSEST){
+            for(int i=0;i<numPrb;i++){
+                constraint[i][closest[i]] = 1.0;
+            }
+        }
+        
+
+        // prepare ARAP solver
+        arapHI(PI, tetList);
+        if(isError>0) return MS::kFailure;
     }
     // read attributes
     short weightMode = data.inputValue( aWeightMode ).asShort();
@@ -134,182 +289,224 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     
     
 // setting transformation matrix
-	if( ! rotationCosistency || numPrb != prevNs.size())
-	{
+	if( ! rotationCosistency || numPrb != prevNs.size()){
 		prevThetas.clear();
 		prevThetas.resize(numPrb, 0.0);
 		prevNs.clear();
 		prevNs.resize(numPrb, Vector3d::Zero());
 	}
-    std::vector<Matrix4d> aff(numPrb);
-    std::vector<Vector3d> center(numPrb);
-    for(int i=0;i<numPrb;i++)
-        aff[i]=initMatrix[i].inverse()*matrix[i];
-    std::vector<Matrix3d> logR(numPrb);
-    std::vector<Matrix3d> R(numPrb);
-    std::vector<Matrix4d> logSE(numPrb);
-    std::vector<Matrix4d> SE(numPrb);
-    std::vector<Matrix3d> logS(numPrb);
+    std::vector<Matrix3d> logR(numPrb),R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
+    std::vector<Matrix4d> logSE(numPrb),SE(numPrb),logAff(numPrb),Aff(numPrb);
     std::vector<Vector3d> L(numPrb);
-    std::vector<Matrix3d> logGL(numPrb);
-    std::vector<Matrix4d> logAff(numPrb);
     std::vector<Vector4d> quat(numPrb);
-    if(blendMode == 0 || blendMode == 1 || blendMode == 5)  // polarexp or quaternion
-    {
-        for(int i=0;i<numPrb;i++)        {
-            parametriseGL(aff[i].block(0,0,3,3), logS[i] ,R[i]);
-            L[i] = transPart(aff[i]);
-            if(blendMode == 0){  // Rotational log
+    for(int i=0;i<numPrb;i++)
+        Aff[i]=initMatrix[i].inverse()*matrix[i];
+    if(blendMode == BM_SRL || blendMode == BM_SES || blendMode == BM_QSL){
+        for(int i=0;i<numPrb;i++){
+            parametriseGL(Aff[i].block(0,0,3,3), logS[i] ,R[i]);
+            L[i] = transPart(Aff[i]);
+            if(blendMode == BM_SRL){
                 logR[i]=logSOc(R[i], prevThetas[i], prevNs[i]);
-            }else if(blendMode == 1){ // Eucledian log
-                SE[i]=affine(R[i], L[i]);
+            }else if(blendMode == BM_SES){
+                SE[i]=pad(R[i], L[i]);
                 logSE[i]=logSEc(SE[i], prevThetas[i], prevNs[i]);
-            }else if(blendMode == 5){ // quaternion
+            }else if(blendMode == BM_QSL){
                 Quaternion<double> Q(R[i].transpose());
                 quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
+                S[i]=expSym(logS[i]);
             }
         }
-    }else if(blendMode == 2){    //logmatrix3
+    }else if(blendMode == BM_LOG3){
         for(int i=0;i<numPrb;i++){
-            logGL[i] = aff[i].block(0,0,3,3).log();
-            L[i] = transPart(aff[i]);
+            logGL[i] = Aff[i].block(0,0,3,3).log();
+            L[i] = transPart(Aff[i]);
         }
-    }else if(blendMode == 3){   // logmatrix4
+    }else if(blendMode == BM_LOG4){
         for(int i=0;i<numPrb;i++){
-            logAff[i] = aff[i].log();
+            logAff[i] = Aff[i].log();
         }
     }
 
 
 // prepare transform matrix for each simplex
     std::vector<Matrix4d> At(numTet);
+	std::vector< std::vector<double> > wr(numTet), ws(numTet), wl(numTet);
+
 #pragma omp parallel for
-    for(int j=0; j<numTet; j++ )
-    {
-        // weight computation
-        std::vector<double> wr(numPrb),ws(numPrb),wl(numPrb);
-        if(weightMode == 0){
-            for(int i=0; i<numPrb; i++){
-                wr[i] = ws[i] = wl[i] = idist[j][i]/sidist[j];
-            }
-        }else{
-            float val;
-            for(int i=0; i<numPrb; i++){
-                rWeightCurveR.getValueAtPosition((1.0/(sqrt(idist[j][i])*maxDist)), val );
-                wr[i] = val;
-                rWeightCurveS.getValueAtPosition((1.0/(sqrt(idist[j][i])*maxDist)), val );
-                ws[i] = val;
-                rWeightCurveL.getValueAtPosition((1.0/(sqrt(idist[j][i])*maxDist)), val );
-                wl[i] = val;
-            }
-        }
-        // blend matrix
-        if(blendMode==0)
-        {
-            Matrix3d RR=Matrix3d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for(int i=0; i<numPrb; i++){
-                RR += wr[i] * logR[i];
-                SS += ws[i] * logS[i];
-                l += wl[i] * L[i];
-            }
-            SS = expSym(SS);
-            if(frechetSum){
-                RR = frechetSO(R, wr);
-            }else{
-                RR = expSO(RR);
-            }
-            At[j] = affine(SS*RR, l);
-        }else if(blendMode==1){    // rigid transformation
-            Matrix4d EE=Matrix4d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            for(int i=0; i<numPrb; i++){
-                EE +=  wr[i] * logSE[i];
-                SS +=  ws[i] * logS[i];
-            }
-            if(frechetSum){
-                EE = frechetSE(SE, wr);
-            }else{
-                EE = expSE(EE);
-            }
-            At[j] = affine(expSym(SS),Vector3d::Zero()) * EE;
-        }else if(blendMode == 2){    //logmatrix3
-            Matrix3d G=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for(int i=0; i<numPrb; i++){
-                G +=  wr[i] * logGL[i];
-                l += wl[i] * L[i];
-            }
-            At[j] = ::affine(G.exp(), l);
-        }else if(blendMode == 3){   // logmatrix4
-            Matrix4d A=Matrix4d::Zero();
-            for(int i=0; i<numPrb; i++)
-                A +=  wr[i] * logAff[i];
-            At[j] = A.exp();
-        }else if(blendMode == 5){ // quaternion
-            Vector4d q=Vector4d::Zero();
-            Matrix3d SS=Matrix3d::Zero();
-            Vector3d l=Vector3d::Zero();
-            for(int i=0; i<numPrb; i++){
-                q += wr[i] * quat[i];
-                SS += ws[i] * logS[i];
-                l += wl[i] * L[i];
-            }
-            SS = ::expSym(SS);
-            Quaternion<double> Q(q);
-            Matrix3d RR = Q.matrix().transpose();
-            At[j] = ::affine(SS*RR, l);
-        }else if(blendMode==10){
-            At[j] = Matrix4d::Zero();
-            for(int i=0; i<numPrb; i++){
-                At[j] += wr[i] * aff[i];
-            }
-        }
-    }
+	for (int j = 0; j < numTet; j++){
+		wr[j].resize(numPrb); ws[j].resize(numPrb); wl[j].resize(numPrb);
+		// weight computation
+		if (weightMode == WM_INV_DISTANCE){
+			double sum = 0;
+			std::vector<double> idist(numPrb);
+			for (int i = 0; i<numPrb; i++){
+				idist[i] = 1.0 / pow(dist[j][i], normExponent);
+				sum += idist[i];
+			}
+			assert(sum > 0);
+			for (int i = 0; i<numPrb; i++){
+				wr[j][i] = ws[j][i] = wl[j][i] = idist[i] / sum;
+			}
+		}
+		else if (weightMode == WM_CUTOFF_DISTANCE){
+			double sum = 0;
+			for (int i = 0; i<numPrb; i++){
+				wr[j][i] = ws[j][i] = wl[j][i] = (dist[j][i] > maxDist)
+					? 0 : pow((maxDist - dist[j][i]) / maxDist, normExponent);
+				sum += wr[j][i];
+			}
+			if (sum > 1){
+				for (int i = 0; i < numPrb; i++){
+					wr[j][i] /= sum;
+				}
+			}
+		}
+		else if (weightMode == WM_DRAW){
+			float val;
+			for (int i = 0; i < numPrb; i++){
+				rWeightCurveR.getValueAtPosition(dist[j][i] / maxDist, val);
+				wr[j][i] = val;
+				rWeightCurveS.getValueAtPosition(dist[j][i] / maxDist, val);
+				ws[j][i] = val;
+				rWeightCurveL.getValueAtPosition(dist[j][i] / maxDist, val);
+				wl[j][i] = val;
+			}
+		}
+		// blend matrix
+		if (blendMode == BM_SRL){
+			Matrix3d RR, SS = expSym(blendMat(logS, ws[j]));
+			Vector3d l = blendMat(L, wl[j]);
+			if (frechetSum){
+				RR = frechetSO(R, wr[j]);
+			}
+			else{
+				RR = expSO(blendMat(logR, wr[j]));
+			}
+			At[j] = pad(SS*RR, l);
+		}
+		else if (blendMode == BM_SES){
+			Matrix4d RR;
+			Matrix3d SS = expSym(blendMat(logS, ws[j]));
+			if (frechetSum){
+				RR = frechetSE(SE, wr[j]);
+			}
+			else{
+				RR = expSE(blendMat(logSE, wr[j]));
+			}
+			At[j] = pad(SS, Vector3d::Zero()) * RR;
+		}
+		else if (blendMode == BM_LOG3){
+			Matrix3d RR = blendMat(logGL, wr[j]).exp();
+			Vector3d l = blendMat(L, wl[j]);
+			At[j] = pad(RR, l);
+		}
+		else if (blendMode == BM_LOG4){
+			At[j] = blendMat(logAff, wr[j]).exp();
+		}
+		else if (blendMode == BM_QSL){
+			Vector4d q = blendQuat(quat, wr[j]);
+			Vector3d l = blendMat(L, wl[j]);
+			Matrix3d SS = blendMatLin(S, ws[j]);
+			Quaternion<double> Q(q);
+			Matrix3d RR = Q.matrix().transpose();
+			At[j] = pad(SS*RR, l);
+		}
+		else if (blendMode == BM_AFF){
+			At[j] = blendMatLin(Aff, wr[j]);
+		}
+	}
 
 
 // compute target vertices position
-	MatrixXd G=MatrixXd::Zero(numTet+numPts,3);
-    arapG(At, PI, triangles, aff, G);
-    MatrixXd Sol = solver.solve(G);
+    MatrixXd G(dim,3),Sol;
+    std::vector<double> tetEnergy(numTet);
+    // iterate to determine vertices position
+    for(int k=0;k<numIter;k++){
+        // solve ARAP
+        arapG(At, PI, tetList, Aff, G);
+        Sol = solver.solve(G);
+        
+        // set new vertices position
+        std::vector<Vector3d> new_pts(numPts);
+        for(int i=0;i<numPts;i++){
+            new_pts[i][0]=Sol(i,0);
+            new_pts[i][1]=Sol(i,1);
+            new_pts[i][2]=Sol(i,2);
+        }
+        // if iteration continues
+        if(k+1<numIter || visualisationMode == VM_ENERGY){
+            std::vector<Matrix4d> Q(numTet);
+            tetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q);
+            Matrix3d S,R,newS,newR;
+            for(int i=0;i<numTet;i++){
+                polarHigham(At[i].block(0,0,3,3), S, R);
+                polarHigham((PI[i]*Q[i]).block(0,0,3,3), newS, newR);
+                tetEnergy[i] = (newS-Matrix3d::Identity()).squaredNorm();
+                At[i].block(0,0,3,3) = S*newR;
+            }
+        }
+    }
     for(int i=0;i<numPts;i++){
-        pts[i].x=Sol(i,0);
-        pts[i].y=Sol(i,1);
-        pts[i].z=Sol(i,2);
+        Mpts[i].x=Sol(i,0);
+        Mpts[i].y=Sol(i,1);
+        Mpts[i].z=Sol(i,2);
     }
     if(worldMode){
         for(int i=0;i<numPts;i++)
-            pts[i] *= localToWorldMatrix.inverse();
+            Mpts[i] *= localToWorldMatrix.inverse();
     }
-    itGeo.setAllPositions(pts);
+    itGeo.setAllPositions(Mpts);
+    
+    // set vertex colour
+    if(visualisationMode != VM_OFF){
+        std::vector<double> ptsColour(numPts, 0.0);
+        if(visualisationMode == VM_ENERGY){
+            makePtsWeightList(tetMode, numPts, tetList, faceList, edgeList, vertexList, tetEnergy, ptsColour);
+            for(int i=0;i<numPts;i++){
+                ptsColour[i] *= visualisationMultiplier;
+            }
+        }else if(visualisationMode == VM_STIFFNESS){
+            makePtsWeightList(tetMode, numPts, tetList, faceList, edgeList, vertexList, tetWeight, ptsColour);
+            double maxval = *std::max_element(ptsColour.begin(), ptsColour.end());
+            for(int i=0;i<numPts;i++){
+                ptsColour[i] = 1.0 - ptsColour[i]/maxval;
+            }
+        }else if(visualisationMode == VM_CONSTRAINT){
+            for(int i=0;i<constraint.size();i++){
+                std::map<int, double>::iterator iter;
+                for(iter = constraint[i].begin(); iter != constraint[i].end(); iter++){
+                    ptsColour[iter->first] += iter->second;
+                }
+            }
+        }else if(visualisationMode == VM_EFFECT){
+            std:vector<double> wsum(numTet);
+            for(int j=0;j<numTet;j++){
+                wsum[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+            }
+            makePtsWeightList(tetMode, numPts, tetList, faceList, edgeList, vertexList, wsum, ptsColour);
+        }
+        visualise(data, ptsColour);
+    }
+    
     return MS::kSuccess;
 }
 
-void probeDeformerARAPNode::arapHI(const std::vector<Matrix4d>& PI, const MIntArray& triangles)
-{
-    int dim = numTet + numPts;
-    std::vector<T> tripletList;
-    tripletList.reserve(numTet*16);
+
+
+
+///
+void probeDeformerARAPNode::arapHI(const std::vector<Matrix4d>& PI, const std::vector<int>& tetList){
+    int numTet = (int)tetList.size()/4;
+    std::vector<T> tripletListMat(0);
+    tripletListMat.reserve(numTet*16);
     Matrix4d Hlist;
 	Matrix4d diag=Matrix4d::Identity();
 	diag(3,3)=transWeight;
-    int s,t;
 	for(int i=0;i<numTet;i++){
-		Hlist=PI[i].transpose()*diag*PI[i];
+		Hlist=tetWeight[i] * PI[i].transpose()*diag*PI[i];
 		for(int j=0;j<4;j++){
-            if(j==3){
-                s=numPts+i;
-            }else{
-                s=triangles[3*i+j];
-            }
 			for(int k=0;k<4;k++){
-                if(k==3){
-                    t=numPts+i;
-                }else{
-                    t=triangles[3*i+k];
-                }
-                tripletList.push_back(T(t,s,Hlist(j,k)));
+                tripletListMat.push_back(T(tetList[4*i+j],tetList[4*i+k],Hlist(j,k)));
 			}
 		}
 	}
@@ -324,36 +521,46 @@ void probeDeformerARAPNode::arapHI(const std::vector<Matrix4d>& PI, const MIntAr
     //    }
     //    SpMat mat(dim+numConstraint, dim+numConstraint);
     SpMat mat(dim, dim);
-    mat.setFromTriplets(tripletList.begin(), tripletList.end());
+    mat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
     // set soft constraint
-    std::vector<T> constraintList;
-    constraintList.reserve(numPrb*3);
-    F.resize(dim,numPrb);
-    F.setZero();
-    for(int i=0;i<numPrb;i++){
-        constraintList.push_back(T(triangles[3*constraintTet[i]],i,1.0/3.0));
-        constraintList.push_back(T(triangles[3*constraintTet[i]+1],i,1.0/3.0));
-        constraintList.push_back(T(triangles[3*constraintTet[i]+2],i,1.0/3.0));
+    int cur=0;
+    tripletListMat.resize(0);
+    std::vector<T> tripletListFT(0);
+    for(int i=0;i<constraint.size();i++){
+        std::map<int, double>::iterator iter;
+        for(iter = constraint[i].begin(); iter != constraint[i].end(); iter++){
+            tripletListMat.push_back(T( iter->first, cur, iter->second));
+            tripletListFT.push_back(T( cur, iter->first, 1));
+            cur++;
+        }
     }
-    F.setFromTriplets(constraintList.begin(), constraintList.end());
-    mat += constraintWeight * F * F.transpose();
+    F.resize(dim,cur);
+    F.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    SpMat FT(cur,dim);
+    FT.setFromTriplets(tripletListFT.begin(), tripletListFT.end());
+    mat += (constraintWeight * numTet) * F * FT;
     solver.compute(mat);
-    assert(solver.info()==Success);
+    if(solver.info() != Success){
+//        std::string error_mes = solver.lastErrorMessage();
+        MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
+        isError = ERROR_ARAP_PRECOMPUTE;
+    }
 }
 
 void probeDeformerARAPNode::arapG(const std::vector<Matrix4d>& At, const std::vector<Matrix4d>& PI,
-                                     const MIntArray& triangles, const std::vector<Matrix4d>& aff, MatrixXd& G)
-{
+                                     const std::vector<int>& tetList,
+                                  const std::vector<Matrix4d>& Aff, MatrixXd& G){
+    int numTet = (int)tetList.size()/4;
     Matrix4d Glist;
     Matrix4d diag=Matrix4d::Identity();
     diag(3,3)=transWeight;
+    G.setZero();
     for(int i=0;i<numTet;i++){
-        Glist=At[i].transpose()*diag*PI[i];
+        Glist= tetWeight[i] * PI[i].transpose() * diag * At[i];
         for(int k=0;k<3;k++){
-            for(int j=0;j<3;j++){
-                G(triangles[3*i+j],k) += Glist(k,j);
+            for(int j=0;j<4;j++){
+                G(tetList[4*i+j],k) += Glist(j,k);
             }
-            G(numPts+i,k) += Glist(k,3);
         }
     }
     // set hard constraint
@@ -363,28 +570,49 @@ void probeDeformerARAPNode::arapG(const std::vector<Matrix4d>& At, const std::ve
     //        G.block(dim+i,0,1,3) << cv(0), cv(1), cv(2);
     //    }
     // set soft constraint
-    std::vector<T> constraintList;
+    std::vector<T> constraintList(0);
     constraintList.reserve(numPrb*3);
-    SpMat S(numPrb,3);
+    RowVector4d cv;
+    int cur=0;
     for(int i=0;i<numPrb;i++){
-        RowVector4d cv = constraintVector[i]*aff[i];
-        constraintList.push_back(T(i,0,cv(0)));
-        constraintList.push_back(T(i,1,cv(1)));
-        constraintList.push_back(T(i,2,cv(2)));
+        std::map<int, double>::iterator iter;
+        for(iter = constraint[i].begin(); iter != constraint[i].end(); iter++){
+            cv = pad(pts[iter->first]) * Aff[i];
+            constraintList.push_back(T(cur,0,cv[0]));
+            constraintList.push_back(T(cur,1,cv[1]));
+            constraintList.push_back(T(cur,2,cv[2]));
+            cur++;
+        }
     }
+    SpMat S(cur,3);
     S.setFromTriplets(constraintList.begin(), constraintList.end());
-    SpMat FS = constraintWeight * F * S;
+    SpMat FS = (constraintWeight * numTet) * F * S;
     G += MatrixXd(FS);
 }
 
+// visualise vertex assigned values
+void probeDeformerARAPNode::visualise(MDataBlock& data, std::vector<double>& ptsColour){
+    // load target mesh output
+    MStatus status;
+    MArrayDataHandle outputArray = data.outputArrayValue(outputGeom , &status );
+    MDataHandle hOutput = outputArray.inputValue(&status);
+    MFnMesh outMesh(hOutput.data());
+    MColorArray Colour;
+    MIntArray Index;
+    // set vertex colour
+    for(int i=0;i<ptsColour.size();i++){
+        Colour.append( ptsColour[i] ,0,0);
+        Index.append(i);
+    }
+    outMesh.setVertexColors(Colour, Index);
+}
 
 // read array of matrix attributes and convert them to Eigen matrices
-void probeDeformerARAPNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m)
-{
+void probeDeformerARAPNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m){
     int numPrb=handle.elementCount();
+    m.resize(numPrb);
     MMatrix mat;
-    for(int i=0;i<numPrb;i++)
-    {
+    for(int i=0;i<numPrb;i++){
         handle.jumpToArrayElement(i);
         mat=handle.inputValue().asMatrix();
         m[i] << mat(0,0), mat(0,1), mat(0,2), mat(0,3),
@@ -394,9 +622,8 @@ void probeDeformerARAPNode::readMatrixArray(MArrayDataHandle& handle, std::vecto
     }
 }
 
-// create nodes
-MStatus probeDeformerARAPNode::initialize()
-{
+// create attributes
+MStatus probeDeformerARAPNode::initialize(){
     MFnTypedAttribute tAttr;
     MFnNumericAttribute nAttr;
     MFnEnumAttribute eAttr;
@@ -419,41 +646,58 @@ MStatus probeDeformerARAPNode::initialize()
     addAttribute(aInitMatrix);
     attributeAffects( aInitMatrix, outputGeom );
 
-    aBlendMode = eAttr.create( "blendMode", "bm", 0 );
-    eAttr.addField( "polarexp", 0 );
-    eAttr.addField( "polarexpSE", 1 );
-    eAttr.addField( "logmatrix3", 2 );
-    eAttr.addField( "logmatrix4", 3 );
-    eAttr.addField( "quaternion", 5 );
-    eAttr.addField( "linear", 10 );
-    eAttr.addField( "off", 99 );
+    aBlendMode = eAttr.create( "blendMode", "bm", BM_SRL );
+    eAttr.addField( "expSO+expSym", BM_SRL );
+    eAttr.addField( "expSE+expSym", BM_SES );
+    eAttr.addField( "logmatrix3", BM_LOG3 );
+    eAttr.addField( "logmatrix4", BM_LOG4 );
+    eAttr.addField( "quat+linear", BM_QSL );
+    eAttr.addField( "linear", BM_AFF );
+    eAttr.addField( "off", BM_OFF );
     eAttr.setStorable(true);
     addAttribute( aBlendMode );
     attributeAffects( aBlendMode, outputGeom );
 
-	aRotationConsistency = nAttr.create( "rotationConsistency", "rc", MFnNumericData::kBoolean, 0 );
+	aRotationConsistency = nAttr.create( "rotationConsistency", "rc", MFnNumericData::kBoolean, false );
     nAttr.setStorable(true);
     addAttribute( aRotationConsistency );
     attributeAffects( aRotationConsistency, outputGeom );
 
-	aFrechetSum = nAttr.create( "frechetSum", "fs", MFnNumericData::kBoolean, 0 );
+	aFrechetSum = nAttr.create( "frechetSum", "fs", MFnNumericData::kBoolean, false );
     nAttr.setStorable(true);
     addAttribute( aFrechetSum );
     attributeAffects( aFrechetSum, outputGeom );
 
-    aWeightMode = eAttr.create( "weightMode", "wtm", 0 );
-    eAttr.addField( "normal", 0 );
-    eAttr.addField( "curve", 1 );
+    aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
+    eAttr.addField( "inverse", WM_INV_DISTANCE );
+    eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
+    eAttr.addField( "draw", WM_DRAW );
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );
+    
+    aConstraintMode = eAttr.create( "constraintMode", "ctm", CONSTRAINT_CLOSEST );
+    eAttr.addField( "neighbour",  CONSTRAINT_NEIBOUR);
+    eAttr.addField( "closestPt", CONSTRAINT_CLOSEST );
+    eAttr.setStorable(true);
+    addAttribute( aConstraintMode );
+    attributeAffects( aConstraintMode, outputGeom );
 
-	aWorldMode = nAttr.create( "worldMode", "wrldmd", MFnNumericData::kBoolean, 0 );
+    aTetMode = eAttr.create( "tetMode", "tm", TM_FACE );
+    eAttr.addField( "face", TM_FACE );
+    eAttr.addField( "edge", TM_EDGE );
+    eAttr.addField( "vertex", TM_VERTEX );
+    eAttr.addField( "vface", TM_VFACE );
+    eAttr.setStorable(true);
+    addAttribute( aTetMode );
+    attributeAffects( aTetMode, outputGeom );
+
+	aWorldMode = nAttr.create( "worldMode", "wrldmd", MFnNumericData::kBoolean, true );
     nAttr.setStorable(true);
     addAttribute( aWorldMode );
     attributeAffects( aWorldMode, outputGeom );
     
-	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kDouble, 10.0);
+	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kDouble, 8.0);
     nAttr.setStorable(true);
 	addAttribute( aMaxDist );
 	attributeAffects( aMaxDist, outputGeom );
@@ -463,7 +707,7 @@ MStatus probeDeformerARAPNode::initialize()
 	addAttribute( aTransWeight );
 	attributeAffects( aTransWeight, outputGeom );
     
-	aConstraintWeight = nAttr.create("constraintWeight", "cw", MFnNumericData::kDouble, 100.0);
+	aConstraintWeight = nAttr.create("constraintWeight", "cw", MFnNumericData::kDouble, 1.0);
     nAttr.setStorable(true);
 	addAttribute( aConstraintWeight );
 	attributeAffects( aConstraintWeight, outputGeom );
@@ -473,6 +717,48 @@ MStatus probeDeformerARAPNode::initialize()
 	addAttribute( aNormExponent );
 	attributeAffects( aNormExponent, outputGeom );
     
+	aIteration = nAttr.create("iteration", "it", MFnNumericData::kShort, 1);
+    nAttr.setStorable(true);
+    addAttribute(aIteration);
+    attributeAffects(aIteration, outputGeom);
+    
+	aConstraintRadius = nAttr.create("constraintRadius", "cr", MFnNumericData::kDouble, 2.0);
+    nAttr.setStorable(true);
+	addAttribute( aConstraintRadius );
+	attributeAffects( aConstraintRadius, outputGeom );
+
+    aVisualisationMode = eAttr.create( "visualisationMode", "vm", VM_OFF );
+    eAttr.addField( "off", VM_OFF );
+    eAttr.addField( "energy", VM_ENERGY );
+    eAttr.addField( "effect", VM_EFFECT );
+    eAttr.addField( "constraint", VM_CONSTRAINT );
+    eAttr.addField( "stiffness", VM_STIFFNESS );
+    eAttr.setStorable(true);
+    addAttribute( aVisualisationMode );
+    attributeAffects( aVisualisationMode, outputGeom );
+    
+	aVisualisationMultiplier = nAttr.create("visualisationMultiplier", "vmp", MFnNumericData::kDouble, 1.0);
+    nAttr.setStorable(true);
+	addAttribute( aVisualisationMultiplier );
+	attributeAffects( aVisualisationMultiplier, outputGeom );
+    
+    aStiffness = eAttr.create( "stiffnessMode", "stfm", SM_NONE );
+    eAttr.addField( "off", SM_NONE );
+    eAttr.addField( "painted weight", SM_PAINT );
+    eAttr.addField( "learn", SM_LEARN );
+    eAttr.setStorable(true);
+    addAttribute( aStiffness );
+    attributeAffects( aStiffness, outputGeom );
+    
+    
+	aSupervisedMesh = tAttr.create("supervisedMesh", "svmesh", MFnData::kMesh);
+    tAttr.setStorable(true);
+    tAttr.setArray(true);
+    tAttr.setUsesArrayDataBuilder(true);
+    addAttribute(aSupervisedMesh);
+	attributeAffects( aSupervisedMesh, outputGeom );
+
+
 	//ramp
     aWeightCurveR = rAttr.createCurveRamp( "weightCurveRotation", "wcr" );
     addAttribute( aWeightCurveR );
@@ -483,18 +769,15 @@ MStatus probeDeformerARAPNode::initialize()
     aWeightCurveL = rAttr.createCurveRamp( "weightCurveTranslation", "wcl" );
     addAttribute( aWeightCurveL );
 	attributeAffects( aWeightCurveL, outputGeom );
-
-//    aBlendWeight = nAttr.create( "blendWeight", "bw", MFnNumericData::kDouble );
-//    nAttr.setKeyable( true );
-//    addAttribute( aBlendWeight );
-//    attributeAffects( aBlendWeight, outputGeom );
  
+    // Make the deformer weights paintable
+    MGlobal::executeCommand( "makePaintable -attrType multiFloat -sm deformer probeDeformerARAP weights;" );
+
     return MS::kSuccess;
 }
 
 // create ramp attributes
-MStatus probeDeformerARAPNode::accessoryNodeSetup(MDagModifier& cmd)
-{
+MStatus probeDeformerARAPNode::accessoryNodeSetup(MDagModifier& cmd){
 	MStatus stat;
 	MObject thisNode = thisMObject();
 	MRampAttribute rWeightCurveR( thisNode, probeDeformerARAPNode::aWeightCurveR, &stat );
@@ -520,33 +803,16 @@ MStatus probeDeformerARAPNode::accessoryNodeSetup(MDagModifier& cmd)
 }
 
 
-
-
-void probeDeformerARAPNode::tetMatrixC(const MPointArray& p, const MIntArray& triangles, std::vector<Matrix4d>& m, std::vector<Vector3d>& tetCenter)
-{
-    MVector u, v, q;
-    for(int i=0;i<numTet;i++)
-    {
-        tetCenter[i] << (p[triangles[3*i]].x+p[triangles[3*i+1]].x+p[triangles[3*i+2]].x)/3.0,
-            (p[triangles[3*i]].y+p[triangles[3*i+1]].y+p[triangles[3*i+2]].y)/3.0,
-            (p[triangles[3*i]].z+p[triangles[3*i+1]].z+p[triangles[3*i+2]].z)/3.0;
-        u=p[triangles[3*i+1]]-p[triangles[3*i]];
-        v=p[triangles[3*i+2]]-p[triangles[3*i]];
-        q=u^v;
-//        q.normalize();
-        
-        m[i] << p[triangles[3*i]].x, p[triangles[3*i]].y, p[triangles[3*i]].z, 1,
-        p[triangles[3*i+1]].x, p[triangles[3*i+1]].y, p[triangles[3*i+1]].z, 1,
-        p[triangles[3*i+2]].x, p[triangles[3*i+2]].y, p[triangles[3*i+2]].z, 1,
-        q[0]+p[triangles[3*i]].x,q[1]+p[triangles[3*i]].y, q[2]+p[triangles[3*i]].z,1;
-    }
+// this deformer also changes colours
+void probeDeformerARAPNode::postConstructor(){
+	setDeformationDetails(kDeformsColors);
 }
 
+
 // initializer
-MStatus initializePlugin( MObject obj )
-{
+MStatus initializePlugin( MObject obj ){
     MStatus status;
-    MFnPlugin plugin( obj, "Shizuo KAJI", "0.1", "Any");
+    MFnPlugin plugin( obj, "Shizuo KAJI", "0.1", "CREST");
     
     status = plugin.registerNode( probeDeformerARAPNode::nodeName, probeDeformerARAPNode::id, probeDeformerARAPNode::creator, probeDeformerARAPNode::initialize, MPxNode::kDeformerNode );
     CHECK_MSTATUS_AND_RETURN_IT( status );
@@ -554,8 +820,7 @@ MStatus initializePlugin( MObject obj )
     return status;
 }
 
-MStatus uninitializePlugin( MObject obj )
-{
+MStatus uninitializePlugin( MObject obj ){
     MStatus   status;
     MFnPlugin plugin( obj );
     

@@ -7,7 +7,7 @@
 #include <numeric>
 #include <unsupported/Eigen/MatrixFunctions>
 
-#include "../affinelib.h"
+#include "affinelib.h"
 
 using namespace Eigen;
 

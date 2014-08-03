@@ -13,16 +13,16 @@
   <PropertyGroup Label="Globals">
     <ProjectGuid>{67131301-2A24-437B-8B18-9498812D7B0E}</ProjectGuid>
     <RootNamespace>probeDeformer</RootNamespace>
-    <ProjectName>probe</ProjectName>
+    <ProjectName>probeDeformerARAP</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v120_xp</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ConfigurationType>DynamicLibrary</ConfigurationType>
-    <PlatformToolset>v110_xp</PlatformToolset>
+    <PlatformToolset>v120</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -31,23 +31,38 @@
     <Import Project="..\MayaPlugin.props" />
   </ImportGroup>
   <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <Import Project="..\MayaPluginDbug.props" />
+    <Import Project="..\MayaPluginDebug.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
-  <PropertyGroup />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <OutDir>$(HOME)\Documents\maya\</OutDir>
+    <IntDir>$(HOME)\Documents\maya\</IntDir>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <OutDir>$(HOME)\Documents\maya\</OutDir>
+    <IntDir>$(HOME)\Documents\maya\</IntDir>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <Link>
       <AdditionalOptions>/export:initializePlugin /export:uninitializePlugin %(AdditionalOptions)</AdditionalOptions>
     </Link>
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(HOME)\Dropbox\maple\mayac\AffiLib;$(HOME)\Dropbox\maple\mayac;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(home)\Dropbox\maple\mayac\;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="affinelib.h" />
+    <ClInclude Include="ProbeDeformerARAP\probeDeformerARAP.h" />
     <ClInclude Include="ProbeDeformer\mayaHeaders.h" />
-    <ClInclude Include="ProbeDeformer\probeDeformer.h" />
     <ClInclude Include="ProbeDeformer\StdAfx.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ProbeDeformer\probeDeformer.cpp" />
+    <ClCompile Include="ProbeDeformerARAP\probeDeformerARAP.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
