@@ -28,6 +28,11 @@ using namespace AffineLib;
 #define WM_CUTOFF_DISTANCE 1
 #define WM_DRAW 2
 
+// visualisation mode
+#define VM_OFF 0
+#define VM_EFFECT 2
+#define VM_STIFFNESS 4
+
 MTypeId probeDeformerNode::id( 0x00000103 );
 MString probeDeformerNode::nodeName( "probeDeformer" );
 MObject probeDeformerNode::aMatrix;
@@ -42,6 +47,8 @@ MObject probeDeformerNode::aMaxDist;
 MObject probeDeformerNode::aRotationConsistency;
 MObject probeDeformerNode::aFrechetSum;
 MObject probeDeformerNode::aNormExponent;
+MObject probeDeformerNode::aProbeWeight;
+MObject probeDeformerNode::aVisualisationMode;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
@@ -53,6 +60,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     bool worldMode = data.inputValue( aWorldMode ).asBool();
     short blendMode = data.inputValue( aBlendMode ).asShort();
     short weightMode = data.inputValue( aWeightMode ).asShort();
+    short visualisationMode = data.inputValue( aVisualisationMode ).asShort();
     double maxDist = data.inputValue( aMaxDist ).asDouble();
     double normExponent = data.inputValue( aNormExponent ).asDouble();
 	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
@@ -109,7 +117,6 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             logAff[i] = Aff[i].log();
         }
     }
-
     
 // transform target vertices
     // get positions
@@ -124,78 +131,98 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     for(int i=0;i<numPts;i++){
         pts[i] << Mpts[i].x, Mpts[i].y, Mpts[i].z;
     }
+    
+    // load per vertex weights
+    std::vector<double> ptsWeight(numPts);
+    for (int i=0; !itGeo.isDone(); itGeo.next()){
+        ptsWeight[i++] = weightValue(data, mIndex, itGeo.index());
+    }
+    
+    // load probe weights
+    std::vector<double> probeWeight(numPrb), probeRadius(numPrb);
+    MArrayDataHandle handle = data.inputArrayValue(aProbeWeight);
+    if(handle.elementCount() != numPrb){
+        MGlobal::displayInfo("# of Probes and probeWeight are different");
+        return MS::kFailure;
+    }
+    for(int i=0;i<numPrb;i++){
+        handle.jumpToArrayElement(i);
+        probeWeight[i]=handle.inputValue().asDouble();
+        probeRadius[i] = probeWeight[i] * maxDist;
+    }
 
+    std::vector< std::vector<double> > wr(numPts),ws(numPts),wl(numPts);
+    
 #pragma omp parallel for
     for(int j=0; j<numPts; j++ ){
+        wr[j].resize(numPrb);ws[j].resize(numPrb);wl[j].resize(numPrb);
         // weight computation
         std::vector<double> dist(numPrb);
-
         for( int i=0; i<numPrb; i++){
             dist[i] = (pts[j]-probeCenter[i]).norm();
         }
-        std::vector<double> wr(numPrb),ws(numPrb),wl(numPrb);
         if(weightMode == WM_INV_DISTANCE){
             double sum=0;
             std::vector<double> idist(numPrb);
             for( int i=0; i<numPrb; i++){
-                idist[i] = 1.0/pow(dist[i],normExponent);
+                idist[i] = probeWeight[i]/pow(dist[i],normExponent);
                 sum += idist[i];
             }
             assert( sum > 0);
             for( int i=0; i<numPrb; i++){
-                wr[i] = ws[i] = wl[i] = idist[i]/sum;
+                wr[j][i] = ws[j][i] = wl[j][i] = ptsWeight[j]*idist[i]/sum;
             }
         }else if(weightMode == WM_CUTOFF_DISTANCE){
             for( int i=0; i<numPrb; i++){
-                wr[i] = ws[i] = wl[i] = (dist[i] > maxDist)
-                ? 0 : pow((maxDist-dist[i])/maxDist,normExponent);
+                wr[j][i] = ws[j][i] = wl[j][i] = (dist[i] > probeRadius[i])
+                ? 0 : ptsWeight[j] * pow((probeRadius[i]-dist[i])/probeRadius[i],normExponent);
             }
         }else if(weightMode == WM_DRAW){
             float val;
             for( int i=0; i<numPrb; i++){
-                rWeightCurveR.getValueAtPosition(dist[i]/maxDist, val );
-                wr[i] = val;
-                rWeightCurveS.getValueAtPosition(dist[i]/maxDist, val );
-                ws[i] = val;
-                rWeightCurveL.getValueAtPosition(dist[i]/maxDist, val );
-                wl[i] = val;
+                rWeightCurveR.getValueAtPosition(dist[i]/probeRadius[i], val );
+                wr[j][i] = val;
+                rWeightCurveS.getValueAtPosition(dist[i]/probeRadius[i], val );
+                ws[j][i] = val;
+                rWeightCurveL.getValueAtPosition(dist[i]/probeRadius[i], val );
+                wl[j][i] = val;
             }
         }
         Matrix4d mat;
         // blend matrix
         if(blendMode == BM_SRL){
-            Matrix3d RR,SS=expSym(blendMat(logS, ws));
-            Vector3d l=blendMat(L, wl);
+            Matrix3d RR,SS=expSym(blendMat(logS, ws[j]));
+            Vector3d l=blendMat(L, wl[j]);
             if(frechetSum){
-                RR = frechetSO(R, wr);
+                RR = frechetSO(R, wr[j]);
             }else{
-                RR = expSO(blendMat(logR, wr));
+                RR = expSO(blendMat(logR, wr[j]));
             }
             mat = pad(SS*RR, l);
         }else if(blendMode == BM_SES){
             Matrix4d RR;
-            Matrix3d SS=expSym(blendMat(logS, ws));
+            Matrix3d SS=expSym(blendMat(logS, ws[j]));
             if(frechetSum){
-                RR = frechetSE(SE, wr);
+                RR = frechetSE(SE, wr[j]);
             }else{
-                RR = expSE(blendMat(logSE, wr));
+                RR = expSE(blendMat(logSE, wr[j]));
             }
             mat = pad(SS,Vector3d::Zero()) * RR;
         }else if(blendMode == BM_LOG3){
-            Matrix3d RR=blendMat(logGL, wr).exp();
-            Vector3d l=blendMat(L, wl);
+            Matrix3d RR=blendMat(logGL, wr[j]).exp();
+            Vector3d l=blendMat(L, wl[j]);
             mat = pad(RR, l);
         }else if(blendMode == BM_LOG4){
-            mat=blendMat(logAff, wr).exp();
+            mat=blendMat(logAff, wr[j]).exp();
         }else if(blendMode == BM_QSL){
-            Vector4d q=blendQuat(quat,wr);
-            Vector3d l=blendMat(L, wl);
-            Matrix3d SS=blendMatLin(S,ws);
+            Vector4d q=blendQuat(quat,wr[j]);
+            Vector3d l=blendMat(L, wl[j]);
+            Matrix3d SS=blendMatLin(S,ws[j]);
             Quaternion<double> Q(q);
             Matrix3d RR = Q.matrix().transpose();
             mat = pad(SS*RR, l);
         }else if(blendMode == BM_AFF){
-            mat = blendMatLin(Aff,wr);
+            mat = blendMatLin(Aff,wr[j]);
         }
         // apply matrix
         RowVector4d p = pad(pts[j]) * mat;
@@ -207,7 +234,41 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     }
     // set positions
     itGeo.setAllPositions(Mpts);
+    
+    
+    // set vertex colour
+    if(visualisationMode != VM_OFF){
+        std::vector<double> ptsColour(numPts, 0.0);
+        if(visualisationMode == VM_STIFFNESS){
+            for(int i=0;i<numPts;i++){
+                ptsColour[i] = 1.0 - ptsWeight[i];
+            }
+        }else if(visualisationMode == VM_EFFECT){
+            for(int j=0;j<numPts;j++){
+                ptsColour[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+            }
+        }
+        visualise(data, ptsColour);
+    }
+
     return MS::kSuccess;
+}
+
+// visualise vertex assigned values
+void probeDeformerNode::visualise(MDataBlock& data, std::vector<double>& ptsColour){
+    // load target mesh output
+    MStatus status;
+    MArrayDataHandle outputArray = data.outputArrayValue(outputGeom , &status );
+    MDataHandle hOutput = outputArray.inputValue(&status);
+    MFnMesh outMesh(hOutput.data());
+    MColorArray Colour;
+    MIntArray Index;
+    // set vertex colour
+    for(int i=0;i<ptsColour.size();i++){
+        Colour.append( ptsColour[i] ,0,0);
+        Index.append(i);
+    }
+    outMesh.setVertexColors(Colour, Index);
 }
 
 
@@ -297,6 +358,21 @@ MStatus probeDeformerNode::initialize()
 	addAttribute( aNormExponent );
 	attributeAffects( aNormExponent, outputGeom );
     
+    aProbeWeight = nAttr.create("probeWeight", "prw", MFnNumericData::kDouble, 1.0);
+    nAttr.setArray(true);
+    nAttr.setStorable(true);
+    nAttr.setUsesArrayDataBuilder(true);
+    addAttribute(aProbeWeight);
+	attributeAffects( aProbeWeight, outputGeom );
+
+    aVisualisationMode = eAttr.create( "visualisationMode", "vm", VM_OFF );
+    eAttr.addField( "off", VM_OFF );
+    eAttr.addField( "effect", VM_EFFECT );
+    eAttr.addField( "stiffness", VM_STIFFNESS );
+    eAttr.setStorable(true);
+    addAttribute( aVisualisationMode );
+    attributeAffects( aVisualisationMode, outputGeom );
+
 	//ramp
     aWeightCurveR = rAttr.createCurveRamp( "weightCurveRotation", "wcr" );
     addAttribute( aWeightCurveR );
@@ -339,6 +415,10 @@ MStatus probeDeformerNode::accessoryNodeSetup(MDagModifier& cmd)
 }
 
 
+// this deformer also changes colours
+void probeDeformerNode::postConstructor(){
+	setDeformationDetails(kDeformsColors);
+}
 
 // plugin initializer
 MStatus initializePlugin( MObject obj )

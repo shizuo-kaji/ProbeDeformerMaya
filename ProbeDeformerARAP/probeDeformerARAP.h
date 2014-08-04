@@ -20,7 +20,7 @@ using namespace Eigen;
 class probeDeformerARAPNode : public MPxDeformerNode
 {
 public:
-    probeDeformerARAPNode(): numPrb(0), tetMode(-1), isError(0)  {};
+    probeDeformerARAPNode(): numPrb(0), isError(0)  {};
     virtual MStatus deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex );
 	virtual MStatus accessoryNodeSetup( MDagModifier& cmd );
     void    postConstructor();
@@ -29,6 +29,7 @@ public:
  
     static MTypeId      id;
     static MString      nodeName;
+    static MObject      aARAP;   // this attr will be dirtied when ARAP recomputation is needed
     static MObject      aInitMatrix;
     static MObject      aMatrix;
     static MObject      aBlendMode;
@@ -51,6 +52,8 @@ public:
     static MObject      aVisualisationMultiplier;
     static MObject      aSupervisedMesh;
     static MObject      aStiffness;
+    static MObject      aProbeWeight;
+    static MObject      aProbeConstraintRadius;
     
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
@@ -58,29 +61,26 @@ private:
 	void arapG(const std::vector< Matrix4d>& At, const std::vector<Matrix4d>& PI,
                   const std::vector<int>& tetList, const std::vector<Matrix4d>& Aff, MatrixXd& G);
     void visualise(MDataBlock& data, std::vector<double>& ptsColour);
-	std::vector<Vector3d> prevNs;
-	std::vector<double> prevThetas;
-	std::vector<Matrix4d> PI;
-    std::vector<Vector3d> probeCenter;
-    std::vector<Vector3d> tetCenter;
-    std::vector<vertex> vertexList;
-    std::vector<int> tetList;
-    std::vector<edge> edgeList;
-    std::vector<int> faceList;
-    std::vector<Vector3d> pts;
-    std::vector<double> tetWeight;
-    double transWeight;
-    double constraintWeight;
-    double normExponent, constraintRadius;
-    bool worldMode;
-    short tetMode, constraintMode, stiffnessMode, isError;
-    SimplicialLDLT<SpMat> solver;
+    // variables
+	std::vector<Vector3d> prevNs;   // for rotation consistency
+	std::vector<double> prevThetas; // for rotation consistency
+	std::vector<Matrix4d> PI;   // inverse of initial tet matrix
+    std::vector<Vector3d> probeCenter; // initial location of probes
+    std::vector<Vector3d> tetCenter; // center of tets
+    std::vector<vertex> vertexList;   // mesh data
+    std::vector<int> tetList;   // mesh data
+    std::vector<edge> edgeList;   // mesh data
+    std::vector<int> faceList;   // mesh data
+    std::vector<Vector3d> pts;   // coordinates for mesh points
+    std::vector<double> tetWeight; // tetWeight[j] is the stiffness of j-th tet
+    double transWeight; // how much translation part affects in ARAP computation
+    short isError;  // to catch error
+    int numPrb;  // number of probes
+    int dim; // total number of pts including the "ghost" added for forming tetrahedra
+    std::vector< std::map<int,double> > constraint;  // if constraint[i] contains {j:x}, it means i-th probe constraints j-th point with weight x
+    std::vector< std::vector<double> > dist;    // dist[j][i] is the distance from j-th tet to i-th probe
+    SimplicialLDLT<SpMat> solver;   // ARAP solver
 //    SimplicialCholesky<SpMat> solver;
 //    SparseLU<SpMat> solver;
     SpMat F;                // ARAP constraint matrix
-	MIntArray triangles;
-    int numPrb;
-    int dim;
-    std::vector< std::map<int,double> > constraint;
-    std::vector< std::vector<double> > dist;
 };

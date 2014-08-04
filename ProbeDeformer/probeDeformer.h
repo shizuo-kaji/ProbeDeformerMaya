@@ -17,8 +17,10 @@ public:
     probeDeformerNode()  {};
     virtual MStatus deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex );
 	virtual MStatus accessoryNodeSetup( MDagModifier& cmd );
+    void visualise(MDataBlock& data, std::vector<double>& ptsColour);
     static  void*   creator();
     static  MStatus initialize();
+    void    postConstructor();
  
     static MTypeId      id;
     static MString      nodeName;
@@ -34,6 +36,8 @@ public:
 	static MObject		aRotationConsistency;
 	static MObject		aFrechetSum;
     static MObject      aNormExponent;
+    static MObject      aVisualisationMode;
+    static MObject      aProbeWeight;
 
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);

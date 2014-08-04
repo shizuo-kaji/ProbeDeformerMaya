@@ -108,7 +108,7 @@ namespace AffineLib{
     }
     
     Matrix3d logSO(const Matrix3d& m)
-    /** Log for rotational matrix using Rodrigues' formula
+    /** Log for rotational matrix using Axis-Angle
      * @param m rotational matrix
      * @return primary value of log(m)
      */
@@ -132,10 +132,14 @@ namespace AffineLib{
         AngleAxisd X(m);
         Matrix3d A;
         double theta=X.angle();
-        A << 0,     -X.axis()[2], X.axis()[1],
-        X.axis()[2], 0,        -X.axis()[0],
-        -X.axis()[1], X.axis()[0], 0;
-        if(X.axis().dot(prevN)<0){
+        Vector3d n=X.axis();
+        if(abs(theta)<EPSILON){
+            n=prevN;
+        }
+        A << 0,     -n[2], n[1],
+        n[2], 0,        -n[0],
+        -n[1], n[0], 0;
+        if(n.dot(prevN)<0){
             A = -A;
             theta = -theta;
         }
