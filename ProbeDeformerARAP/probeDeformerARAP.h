@@ -11,10 +11,15 @@
 #include "affinelib.h"
 #include "tetrise.h"
 
-typedef Eigen::SparseMatrix<double> SpMat;
-typedef Eigen::Triplet<double> T;
-
 using namespace Eigen;
+
+
+typedef SparseMatrix<double> SpMat;
+typedef SimplicialLDLT<SpMat> SpSolver;
+//    SimplicialLLT<SpMat>;
+//    SparseLU<SpMat>;
+typedef Triplet<double> T;
+
 
 //deformer
 class probeDeformerARAPNode : public MPxDeformerNode
@@ -30,6 +35,7 @@ public:
     static MTypeId      id;
     static MString      nodeName;
     static MObject      aARAP;   // this attr will be dirtied when ARAP recomputation is needed
+    static MObject      aComputeWeight; // this attr will be dirtied when weight recomputation is needed
     static MObject      aInitMatrix;
     static MObject      aMatrix;
     static MObject      aBlendMode;
@@ -39,9 +45,9 @@ public:
 	static MObject		aWeightCurveR;
 	static MObject		aWeightCurveS;
 	static MObject		aWeightCurveL;
-	static MObject		aMaxDist;
-    static MObject      aTransWeight;
-    static MObject      aConstraintWeight;
+	static MObject		aMaxDist;     // global effect radius of probes
+    static MObject      aTransWeight; // how much translation part affects in ARAP computation
+    static MObject      aConstraintWeight; // global constraint weight of probes
 	static MObject		aRotationConsistency;
 	static MObject		aFrechetSum;
     static MObject      aNormExponent;
@@ -57,10 +63,12 @@ public:
     
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
-	void arapHI(const std::vector<Matrix4d>& PI, const std::vector<int>& tetList);
+	void arapHI(const std::vector<Matrix4d>& PI, const std::vector<int>& tetList, double transWeight);
 	void arapG(const std::vector< Matrix4d>& At, const std::vector<Matrix4d>& PI,
-                  const std::vector<int>& tetList, const std::vector<Matrix4d>& Aff, MatrixXd& G);
+                  const std::vector<int>& tetList, const std::vector<Matrix4d>& Aff,
+                double transWeight, MatrixXd& G);
     void visualise(MDataBlock& data, std::vector<double>& ptsColour);
+    void harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode);
     // variables
 	std::vector<Vector3d> prevNs;   // for rotation consistency
 	std::vector<double> prevThetas; // for rotation consistency
@@ -73,14 +81,13 @@ private:
     std::vector<int> faceList;   // mesh data
     std::vector<Vector3d> pts;   // coordinates for mesh points
     std::vector<double> tetWeight; // tetWeight[j] is the stiffness of j-th tet
-    double transWeight; // how much translation part affects in ARAP computation
+    std::vector< std::vector<double> > wr, ws, wl; // wr[j][i] is the weight of ith probe on j-th tet
+    std::vector<int> closestPts; // closestPts[i] is the index of pt closest to i-th probe
     short isError;  // to catch error
     int numPrb;  // number of probes
     int dim; // total number of pts including the "ghost" added for forming tetrahedra
     std::vector< std::map<int,double> > constraint;  // if constraint[i] contains {j:x}, it means i-th probe constraints j-th point with weight x
     std::vector< std::vector<double> > dist;    // dist[j][i] is the distance from j-th tet to i-th probe
-    SimplicialLDLT<SpMat> solver;   // ARAP solver
-//    SimplicialCholesky<SpMat> solver;
-//    SparseLU<SpMat> solver;
+    SpSolver solver;   // ARAP solver
     SpMat F;                // ARAP constraint matrix
 };

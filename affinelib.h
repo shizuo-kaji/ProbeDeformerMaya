@@ -41,6 +41,7 @@ using namespace Eigen;
 using namespace std;
 /// For vecterization of Eigen objects
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Matrix4d);
+EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Vector4d);
 
 namespace AffineLib{
     Matrix4d pad(const Matrix3d& m, const Vector3d& l, const double br=1.0)

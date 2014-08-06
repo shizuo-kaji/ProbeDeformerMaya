@@ -6,18 +6,23 @@
 
 #include <numeric>
 #include <unsupported/Eigen/MatrixFunctions>
+#include <Eigen/Sparse>
 
 #include "affinelib.h"
+#include "tetrise.h"
 
 using namespace Eigen;
+
+typedef SparseMatrix<double> SpMat;
+typedef Triplet<double> T;
+
 
 class probeDeformerNode : public MPxDeformerNode
 {
 public:
-    probeDeformerNode()  {};
+    probeDeformerNode(): numPrb(0) {};
     virtual MStatus deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex );
 	virtual MStatus accessoryNodeSetup( MDagModifier& cmd );
-    void visualise(MDataBlock& data, std::vector<double>& ptsColour);
     static  void*   creator();
     static  MStatus initialize();
     void    postConstructor();
@@ -38,10 +43,16 @@ public:
     static MObject      aNormExponent;
     static MObject      aVisualisationMode;
     static MObject      aProbeWeight;
+    static MObject      aComputeWeight;
 
 private:
     void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
+    void visualise(MDataBlock& data, std::vector<double>& ptsColour);
+    void harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
+                        const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist);
 
 	std::vector<Vector3d> prevNs;
 	std::vector<double> prevThetas;
+    std::vector< std::vector<double> > wr,ws,wl;
+    int numPrb;
 };

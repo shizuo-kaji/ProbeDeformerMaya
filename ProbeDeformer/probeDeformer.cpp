@@ -13,6 +13,7 @@
 
 using namespace Eigen;
 using namespace AffineLib;
+using namespace Tetrise;
 
 // parametrisation mode
 #define BM_SRL 0
@@ -27,6 +28,7 @@ using namespace AffineLib;
 #define WM_INV_DISTANCE 0
 #define WM_CUTOFF_DISTANCE 1
 #define WM_DRAW 2
+#define WM_HARMONIC 3
 
 // visualisation mode
 #define VM_OFF 0
@@ -49,6 +51,7 @@ MObject probeDeformerNode::aFrechetSum;
 MObject probeDeformerNode::aNormExponent;
 MObject probeDeformerNode::aProbeWeight;
 MObject probeDeformerNode::aVisualisationMode;
+MObject probeDeformerNode::aComputeWeight;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
@@ -65,12 +68,10 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     double normExponent = data.inputValue( aNormExponent ).asDouble();
 	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
-	MRampAttribute rWeightCurveR( thisNode, aWeightCurveR, &status );
-	MRampAttribute rWeightCurveS( thisNode, aWeightCurveS, &status );
-	MRampAttribute rWeightCurveL( thisNode, aWeightCurveL, &status );
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
-    int numPrb = hMatrixArray.elementCount();
+    bool isNumProbeChanged = (numPrb != hMatrixArray.elementCount());
+    numPrb = hMatrixArray.elementCount();
     if(numPrb != hInitMatrixArray.elementCount() || numPrb==0 || blendMode == BM_OFF)
         return MS::kSuccess;
 	if( ! rotationCosistency || numPrb != prevNs.size()){
@@ -138,91 +139,148 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         ptsWeight[i++] = weightValue(data, mIndex, itGeo.index());
     }
     
-    // load probe weights
-    std::vector<double> probeWeight(numPrb), probeRadius(numPrb);
-    MArrayDataHandle handle = data.inputArrayValue(aProbeWeight);
-    if(handle.elementCount() != numPrb){
-        MGlobal::displayInfo("# of Probes and probeWeight are different");
-        return MS::kFailure;
-    }
-    for(int i=0;i<numPrb;i++){
-        handle.jumpToArrayElement(i);
-        probeWeight[i]=handle.inputValue().asDouble();
-        probeRadius[i] = probeWeight[i] * maxDist;
-    }
 
-    std::vector< std::vector<double> > wr(numPts),ws(numPts),wl(numPts);
+    // weight computation
+    if(!data.isClean(aComputeWeight) || isNumProbeChanged){
+        status = data.setClean(aComputeWeight);
+        // load probe weights
+        std::vector<double> probeWeight(numPrb), probeRadius(numPrb);
+        MArrayDataHandle handle = data.inputArrayValue(aProbeWeight);
+        if(handle.elementCount() != numPrb){
+            MGlobal::displayInfo("# of Probes and probeWeight are different");
+            return MS::kFailure;
+        }
+        for(int i=0;i<numPrb;i++){
+            handle.jumpToArrayElement(i);
+            probeWeight[i]=handle.inputValue().asDouble();
+            probeRadius[i] = probeWeight[i] * maxDist;
+        }
+        //
+        wr.resize(numPts),ws.resize(numPts),wl.resize(numPts);
+        std::vector< std::vector<double> > dist(numPts);
+        for(int j=0; j<numPts; j++ ){
+            wr[j].resize(numPrb);ws[j].resize(numPrb);wl[j].resize(numPrb);
+            dist[j].resize(numPrb);
+            for( int i=0; i<numPrb; i++){
+                dist[j][i] = (pts[j]-probeCenter[i]).norm();
+            }
+        }
+        if(weightMode == WM_INV_DISTANCE){
+            for(int j=0; j<numPts; j++ ){
+                double sum=0;
+                std::vector<double> idist(numPrb);
+                for( int i=0; i<numPrb; i++){
+                    idist[i] = probeWeight[i]/pow(dist[j][i],normExponent);
+                    sum += idist[i];
+                }
+                assert( sum > 0);
+                for( int i=0; i<numPrb; i++){
+                    wr[j][i] = ws[j][i] = wl[j][i] = idist[i]/sum;
+                }
+            }
+        }else if(weightMode == WM_CUTOFF_DISTANCE){
+            for(int j=0; j<numPts; j++ ){
+                for( int i=0; i<numPrb; i++){
+                    wr[j][i] = ws[j][i] = wl[j][i] = (dist[j][i] > probeRadius[i])
+                    ? 0 : pow((probeRadius[i]-dist[j][i])/probeRadius[i],normExponent);
+                }
+            }
+        }else if(weightMode == WM_DRAW){
+            MRampAttribute rWeightCurveR( thisNode, aWeightCurveR, &status );
+            MRampAttribute rWeightCurveS( thisNode, aWeightCurveS, &status );
+            MRampAttribute rWeightCurveL( thisNode, aWeightCurveL, &status );
+            float val;
+            for(int j=0; j<numPts; j++ ){
+                for( int i=0; i<numPrb; i++){
+                    rWeightCurveR.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    wr[j][i] = val;
+                    rWeightCurveS.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    ws[j][i] = val;
+                    rWeightCurveL.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    wl[j][i] = val;
+                }
+            }
+        }else if(weightMode == WM_HARMONIC){
+            // face list
+            MArrayDataHandle hInput = data.outputArrayValue( input, &status );
+            status = hInput.jumpToElement( mIndex );
+            MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
+            MFnMesh inputGeom(oInputGeom);
+            MIntArray count, triangles;
+            inputGeom.getTriangles( count, triangles );
+            std::vector<int> faceList;
+            faceList.resize(triangles.length());
+            for(int i=0;i<triangles.length();i++){
+                faceList[i]=triangles[i];
+            }
+            harmonicWeight(probeWeight,faceList,pts,dist);
+        }
+        // normalise
+        for(int j=0;j<numPts;j++){
+            double sum = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+            if (sum > 1){
+                for (int i = 0; i < numPrb; i++){
+                    wr[j][i] /= sum;
+                }
+            }
+            sum = std::accumulate(ws[j].begin(), ws[j].end(), 0.0);
+            if (sum > 1){
+                for (int i = 0; i < numPrb; i++){
+                    ws[j][i] /= sum;
+                }
+            }
+            sum = std::accumulate(wl[j].begin(), wl[j].end(), 0.0);
+            if (sum > 1){
+                for (int i = 0; i < numPrb; i++){
+                    wl[j][i] /= sum;
+                }
+            }
+        }
+    }
     
 #pragma omp parallel for
     for(int j=0; j<numPts; j++ ){
-        wr[j].resize(numPrb);ws[j].resize(numPrb);wl[j].resize(numPrb);
-        // weight computation
-        std::vector<double> dist(numPrb);
-        for( int i=0; i<numPrb; i++){
-            dist[i] = (pts[j]-probeCenter[i]).norm();
+        std::vector<double> wrr(numPrb),wss(numPrb),wll(numPrb);
+        for(int i=0;i<numPrb;i++){
+            wrr[i]=ptsWeight[j]*wr[j][i];
+            wss[i]=ptsWeight[j]*ws[j][i];
+            wll[i]=ptsWeight[j]*wl[j][i];
         }
-        if(weightMode == WM_INV_DISTANCE){
-            double sum=0;
-            std::vector<double> idist(numPrb);
-            for( int i=0; i<numPrb; i++){
-                idist[i] = probeWeight[i]/pow(dist[i],normExponent);
-                sum += idist[i];
-            }
-            assert( sum > 0);
-            for( int i=0; i<numPrb; i++){
-                wr[j][i] = ws[j][i] = wl[j][i] = ptsWeight[j]*idist[i]/sum;
-            }
-        }else if(weightMode == WM_CUTOFF_DISTANCE){
-            for( int i=0; i<numPrb; i++){
-                wr[j][i] = ws[j][i] = wl[j][i] = (dist[i] > probeRadius[i])
-                ? 0 : ptsWeight[j] * pow((probeRadius[i]-dist[i])/probeRadius[i],normExponent);
-            }
-        }else if(weightMode == WM_DRAW){
-            float val;
-            for( int i=0; i<numPrb; i++){
-                rWeightCurveR.getValueAtPosition(dist[i]/probeRadius[i], val );
-                wr[j][i] = val;
-                rWeightCurveS.getValueAtPosition(dist[i]/probeRadius[i], val );
-                ws[j][i] = val;
-                rWeightCurveL.getValueAtPosition(dist[i]/probeRadius[i], val );
-                wl[j][i] = val;
-            }
-        }
-        Matrix4d mat;
         // blend matrix
+        Matrix4d mat;
         if(blendMode == BM_SRL){
-            Matrix3d RR,SS=expSym(blendMat(logS, ws[j]));
-            Vector3d l=blendMat(L, wl[j]);
+            Matrix3d RR,SS=expSym(blendMat(logS, wrr));
+            Vector3d l=blendMat(L, wll);
             if(frechetSum){
-                RR = frechetSO(R, wr[j]);
+                RR = frechetSO(R, wrr);
             }else{
-                RR = expSO(blendMat(logR, wr[j]));
+                RR = expSO(blendMat(logR, wrr));
             }
             mat = pad(SS*RR, l);
         }else if(blendMode == BM_SES){
             Matrix4d RR;
-            Matrix3d SS=expSym(blendMat(logS, ws[j]));
+            Matrix3d SS=expSym(blendMat(logS, wss));
             if(frechetSum){
-                RR = frechetSE(SE, wr[j]);
+                RR = frechetSE(SE, wrr);
             }else{
-                RR = expSE(blendMat(logSE, wr[j]));
+                RR = expSE(blendMat(logSE, wrr));
             }
             mat = pad(SS,Vector3d::Zero()) * RR;
         }else if(blendMode == BM_LOG3){
-            Matrix3d RR=blendMat(logGL, wr[j]).exp();
-            Vector3d l=blendMat(L, wl[j]);
+            Matrix3d RR=blendMat(logGL, wrr).exp();
+            Vector3d l=blendMat(L, wll);
             mat = pad(RR, l);
         }else if(blendMode == BM_LOG4){
-            mat=blendMat(logAff, wr[j]).exp();
+            mat=blendMat(logAff, wrr).exp();
         }else if(blendMode == BM_QSL){
-            Vector4d q=blendQuat(quat,wr[j]);
-            Vector3d l=blendMat(L, wl[j]);
-            Matrix3d SS=blendMatLin(S,ws[j]);
+            Vector4d q=blendQuat(quat,wrr);
+            Vector3d l=blendMat(L, wll);
+            Matrix3d SS=blendMatLin(S,wss);
             Quaternion<double> Q(q);
             Matrix3d RR = Q.matrix().transpose();
             mat = pad(SS*RR, l);
         }else if(blendMode == BM_AFF){
-            mat = blendMatLin(Aff,wr[j]);
+            mat = blendMatLin(Aff,wrr);
         }
         // apply matrix
         RowVector4d p = pad(pts[j]) * mat;
@@ -252,6 +310,75 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     }
 
     return MS::kSuccess;
+}
+
+/// harmonic weighting
+void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
+                                           const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist){
+    std::vector<Matrix4d> P;
+    int numPts=(int)pts.size();
+    std::vector<vertex> dummyVertexList;
+    std::vector<int> tetList;
+    std::vector<edge> dummyEdgeList;
+    makeTetList(TM_FACE, numPts, faceList, dummyEdgeList, dummyVertexList, tetList);
+    tetMatrix(TM_FACE, pts, tetList, faceList, dummyEdgeList, dummyVertexList, P);
+    int num = (int)tetList.size()/4;
+    // find closest points to probes
+    std::vector<int> closestPts(numPrb);
+    for(int i=0;i<numPrb;i++){
+        closestPts[i] = 0;
+        double min_d = HUGE_VAL;
+        for(int j=0;j<numPts;j++){
+            if( dist[j][i] < min_d){
+                min_d = dist[j][i];
+                closestPts[i] = j;
+            }
+        }
+    }
+    // LHS
+    std::vector<T> tripletListMat(0);
+    tripletListMat.reserve(num*16+2*numPrb);
+    Matrix4d Hlist;
+	Matrix4d diag=Matrix4d::Identity();
+	diag(3,3)=0;
+	for(int i=0;i<num;i++){
+        P[i]=P[i].inverse().eval();
+		Hlist=P[i].transpose()*diag*P[i];
+		for(int j=0;j<4;j++){
+			for(int k=0;k<4;k++){
+                tripletListMat.push_back(T(tetList[4*i+j],tetList[4*i+k],Hlist(j,k)));
+			}
+		}
+	}
+    // set hard constraint
+    for(int i=0;i<numPrb;i++){
+        tripletListMat.push_back(T(numPts+num+i,closestPts[i],1));
+        tripletListMat.push_back(T(closestPts[i],numPts+num+i,1));
+    }
+    SpMat H(numPts+num+numPrb, numPts+num+numPrb), G(numPts+num+numPrb,numPrb);
+    H.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    // factorise
+    SparseLU<SpMat> weightSolver;
+    //weightSolver.isSymmetric(true);
+    weightSolver.compute(H);
+    if(weightSolver.info() != Success){
+        //        std::string error_mes = solver.lastErrorMessage();
+        MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
+    }
+    // RHS
+    tripletListMat.clear();
+    tripletListMat.reserve(numPrb);
+    for(int i=0;i<numPrb;i++){
+        tripletListMat.push_back(T( numPts+num+i, i, probeWeight[i]));
+    }
+    G.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    // solve
+    SpMat Sol = weightSolver.solve(G);
+    for (int i=0;i<numPrb; i++){
+        for(int j=0;j<numPts; j++){
+            wr[j][i] = ws[j][i] = wl[j][i] = Sol.coeff(j,i);
+        }
+    }
 }
 
 // visualise vertex assigned values
@@ -296,6 +423,12 @@ MStatus probeDeformerNode::initialize()
     MFnMatrixAttribute mAttr;
    	MRampAttribute rAttr;
 
+    // this attr will be dirtied when weight recomputation is needed
+    aComputeWeight = nAttr.create( "computeWeight", "computeWeight", MFnNumericData::kBoolean, true );
+    nAttr.setStorable(false);
+    nAttr.setKeyable(false);
+    addAttribute( aComputeWeight );
+
     aMatrix = mAttr.create("probeMatrix", "pm");
     mAttr.setStorable(false);
     mAttr.setHidden(true);
@@ -338,25 +471,30 @@ MStatus probeDeformerNode::initialize()
     nAttr.setStorable(true);
     addAttribute( aWorldMode );
     attributeAffects( aWorldMode, outputGeom );
+    attributeAffects( aWorldMode, aComputeWeight );
     
     aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
+    eAttr.addField( "harmonic", WM_HARMONIC);
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );
+    attributeAffects( aWeightMode, aComputeWeight );
 
 	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kDouble, 8.0);
     nAttr.setMin( 0.001 );
     nAttr.setStorable(true);
 	addAttribute( aMaxDist );
 	attributeAffects( aMaxDist, outputGeom );
+	attributeAffects( aMaxDist, aComputeWeight );
 
 	aNormExponent = nAttr.create("normExponent", "ne", MFnNumericData::kDouble, 1.0);
     nAttr.setStorable(true);
 	addAttribute( aNormExponent );
 	attributeAffects( aNormExponent, outputGeom );
+	attributeAffects( aNormExponent, aComputeWeight );
     
     aProbeWeight = nAttr.create("probeWeight", "prw", MFnNumericData::kDouble, 1.0);
     nAttr.setArray(true);
@@ -364,6 +502,7 @@ MStatus probeDeformerNode::initialize()
     nAttr.setUsesArrayDataBuilder(true);
     addAttribute(aProbeWeight);
 	attributeAffects( aProbeWeight, outputGeom );
+	attributeAffects( aProbeWeight, aComputeWeight);
 
     aVisualisationMode = eAttr.create( "visualisationMode", "vm", VM_OFF );
     eAttr.addField( "off", VM_OFF );
