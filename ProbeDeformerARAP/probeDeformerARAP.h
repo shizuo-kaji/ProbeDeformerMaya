@@ -10,6 +10,7 @@
 
 #include "affinelib.h"
 #include "tetrise.h"
+#include "MeshMaya.h"
 
 using namespace Eigen;
 
@@ -62,12 +63,10 @@ public:
     static MObject      aProbeConstraintRadius;
     
 private:
-    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
 	void arapHI(const std::vector<Matrix4d>& PI, const std::vector<int>& tetList, double transWeight);
 	void arapG(const std::vector< Matrix4d>& At, const std::vector<Matrix4d>& PI,
                   const std::vector<int>& tetList, const std::vector<Matrix4d>& Aff,
                 double transWeight, MatrixXd& G);
-    void visualise(MDataBlock& data, std::vector<double>& ptsColour);
     void harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode);
     // variables
 	std::vector<Vector3d> prevNs;   // for rotation consistency

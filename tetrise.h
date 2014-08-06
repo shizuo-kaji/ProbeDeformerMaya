@@ -204,7 +204,7 @@ namespace Tetrise{
     }
     
     // comptute tetrahedra weights from those of points
-    void makeWeightList(short tetMode, const std::vector<int>& tetList,
+    void makeTetWeightList(short tetMode, const std::vector<int>& tetList,
                    const std::vector<int>& faceList, const std::vector<edge>& edgeList,
                    const std::vector<vertex>& vertexList, const std::vector<double>& ptsWeight,
                    std::vector<double>& tetWeight ){
@@ -217,8 +217,8 @@ namespace Tetrise{
             }
         }else if(tetMode == TM_EDGE){
             for(int i=0;i<edgeList.size();i++){
-                tetWeight[2*i]=tetWeight[2*i+1] = (ptsWeight[edgeList[i].vertices[0]]
-                                            + ptsWeight[edgeList[i].vertices[1]])/2;
+                tetWeight[2*i]= (ptsWeight[edgeList[i].vertices[0]]+ptsWeight[edgeList[i].vertices[1]])/2.0;
+                tetWeight[2*i+1]= (ptsWeight[edgeList[i].vertices[0]]+ptsWeight[edgeList[i].vertices[1]])/2.0;
             }
         }else if(tetMode == TM_VERTEX || tetMode == TM_VFACE){
             for(int i=0;i<numTet;i++){
@@ -234,9 +234,11 @@ namespace Tetrise{
         int numTet = (int)tetList.size()/4;
         ptsWeight.clear();
         ptsWeight.resize(numPts,0.0);
+        std::vector<int> ptsCount(numPts,0);
         if(tetMode == TM_FACE){
             for(int i=0;i<numTet;i++){
                 for(int j=0;j<3;j++){
+                    ptsCount[tetList[4*i+j]]++;
                     ptsWeight[tetList[4*i+j]] += tetWeight[i];
                 }
             }
@@ -244,18 +246,24 @@ namespace Tetrise{
             for(int i=0;i<edgeList.size();i++){
                 ptsWeight[edgeList[i].vertices[0]] += tetWeight[2*i]+tetWeight[2*i+1];
                 ptsWeight[edgeList[i].vertices[1]] += tetWeight[2*i]+tetWeight[2*i+1];
+                ptsCount[edgeList[i].vertices[0]]++;
+                ptsCount[edgeList[i].vertices[1]]++;
             }
         }else if(tetMode == TM_VERTEX || tetMode == TM_VFACE){
             for(int i=0;i<numTet;i++){
                 ptsWeight[tetList[4*i]] += tetWeight[i];
+                ptsCount[tetList[4*i]]++;
             }
+        }
+        for(int i=0;i<numPts;i++){
+            ptsWeight[i] /= ptsCount[i];
         }
     }
 
 
     
         // construct tetrahedra matrices
-    void tetMatrix(short tetMode, const std::vector<Vector3d>& pts, const std::vector<int>& tetList,
+    void makeTetMatrix(short tetMode, const std::vector<Vector3d>& pts, const std::vector<int>& tetList,
         const std::vector<int>& faceList, const std::vector<edge>& edgeList,
                     const std::vector<vertex>& vertexList, std::vector<Matrix4d>& P){
         Vector3d u, v, q, c;
@@ -320,7 +328,7 @@ namespace Tetrise{
         int numTet = (int)tetList.size()/4;
         P.clear();
         if( tetMode == TM_FACE || tetMode == TM_EDGE){
-            tetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+            makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
         }else if(tetMode == TM_VERTEX){
             P.reserve(numTet);
             for(int i=0;i<vertexList.size();i++){

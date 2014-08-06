@@ -52,11 +52,11 @@ MObject probeDeformerNode::aNormExponent;
 MObject probeDeformerNode::aProbeWeight;
 MObject probeDeformerNode::aVisualisationMode;
 MObject probeDeformerNode::aComputeWeight;
+MObject probeDeformerNode::aVisualisationMultiplier;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
-MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex )
-{
+MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex ){
 	MObject thisNode = thisMObject();
     MStatus status;
     MThreadUtils::syncNumOpenMPThreads();    // for OpenMP
@@ -68,6 +68,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     double normExponent = data.inputValue( aNormExponent ).asDouble();
 	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
+    double visualisationMultiplier = data.inputValue(aVisualisationMultiplier).asDouble();
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
     bool isNumProbeChanged = (numPrb != hMatrixArray.elementCount());
@@ -303,10 +304,11 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             }
         }else if(visualisationMode == VM_EFFECT){
             for(int j=0;j<numPts;j++){
-                ptsColour[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+//                ptsColour[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+                ptsColour[j] = visualisationMultiplier * wr[j][numPrb-1];
             }
         }
-        visualise(data, ptsColour);
+        visualise(data, outputGeom, ptsColour);
     }
 
     return MS::kSuccess;
@@ -321,7 +323,7 @@ void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, c
     std::vector<int> tetList;
     std::vector<edge> dummyEdgeList;
     makeTetList(TM_FACE, numPts, faceList, dummyEdgeList, dummyVertexList, tetList);
-    tetMatrix(TM_FACE, pts, tetList, faceList, dummyEdgeList, dummyVertexList, P);
+    makeTetMatrix(TM_FACE, pts, tetList, faceList, dummyEdgeList, dummyVertexList, P);
     int num = (int)tetList.size()/4;
     // find closest points to probes
     std::vector<int> closestPts(numPrb);
@@ -381,40 +383,8 @@ void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, c
     }
 }
 
-// visualise vertex assigned values
-void probeDeformerNode::visualise(MDataBlock& data, std::vector<double>& ptsColour){
-    // load target mesh output
-    MStatus status;
-    MArrayDataHandle outputArray = data.outputArrayValue(outputGeom , &status );
-    MDataHandle hOutput = outputArray.inputValue(&status);
-    MFnMesh outMesh(hOutput.data());
-    MColorArray Colour;
-    MIntArray Index;
-    // set vertex colour
-    for(int i=0;i<ptsColour.size();i++){
-        Colour.append( ptsColour[i] ,0,0);
-        Index.append(i);
-    }
-    outMesh.setVertexColors(Colour, Index);
-}
 
-
-// read array of matrix attributes and convert them to Eigen matrices
-void probeDeformerNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m)
-{
-    int num=handle.elementCount();
-    MMatrix mat;
-    for( int i=0;i<num;i++){
-        handle.jumpToArrayElement(i);
-        mat=handle.inputValue().asMatrix();
-        m[i] << mat(0,0), mat(0,1), mat(0,2), mat(0,3),
-            mat(1,0), mat(1,1), mat(1,2), mat(1,3),
-            mat(2,0), mat(2,1), mat(2,2), mat(2,3),
-            mat(3,0), mat(3,1), mat(3,2), mat(3,3);
-    }
-}
-
-// create nodes
+// create attr
 MStatus probeDeformerNode::initialize()
 {
     MFnTypedAttribute tAttr;
@@ -511,6 +481,11 @@ MStatus probeDeformerNode::initialize()
     eAttr.setStorable(true);
     addAttribute( aVisualisationMode );
     attributeAffects( aVisualisationMode, outputGeom );
+    
+    aVisualisationMultiplier = nAttr.create("visualisationMultiplier", "vmp", MFnNumericData::kDouble, 1.0);
+    nAttr.setStorable(true);
+	addAttribute( aVisualisationMultiplier );
+	attributeAffects( aVisualisationMultiplier, outputGeom );
 
 	//ramp
     aWeightCurveR = rAttr.createCurveRamp( "weightCurveRotation", "wcr" );

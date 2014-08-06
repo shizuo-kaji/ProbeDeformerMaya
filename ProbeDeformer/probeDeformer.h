@@ -10,6 +10,7 @@
 
 #include "affinelib.h"
 #include "tetrise.h"
+#include "MeshMaya.h"
 
 using namespace Eigen;
 
@@ -44,10 +45,9 @@ public:
     static MObject      aVisualisationMode;
     static MObject      aProbeWeight;
     static MObject      aComputeWeight;
+    static MObject      aVisualisationMultiplier;
 
 private:
-    void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m);
-    void visualise(MDataBlock& data, std::vector<double>& ptsColour);
     void harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
                         const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist);
 

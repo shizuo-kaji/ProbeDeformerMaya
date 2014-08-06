@@ -124,13 +124,6 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     // (re)compute ARAP
     if(!data.isClean(aARAP) || isNumProbeChanged){
         status = data.setClean(aARAP);
-        // read mesh data
-        MArrayDataHandle hInput = data.outputArrayValue( input, &status );
-        CHECK_MSTATUS_AND_RETURN_IT( status );
-        status = hInput.jumpToElement( mIndex );
-        CHECK_MSTATUS_AND_RETURN_IT( status );
-        MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
-        MFnMesh inputGeom(oInputGeom);
         // load points list
         if(worldMode){
             for(int j=0; j<numPts; j++ )
@@ -140,37 +133,11 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         for(int i=0;i<numPts;i++){
             pts[i] << Mpts[i].x, Mpts[i].y, Mpts[i].z;
         }
-        // face list
-        MIntArray count, triangles;
-        inputGeom.getTriangles( count, triangles );
-        int numFaces = triangles.length()/3;
-        faceList.resize(3*numFaces);
-        for(int i=0;i<3*numFaces;i++){
-            faceList[i]=triangles[i];
-        }
-        // vertex list
-        MItMeshPolygon iter(oInputGeom);
-        MIntArray faceVertices;
-        vertexList.resize(numPts);
-        for(int i=0;i<numPts;i++){
-            vertexList[i].index = i;
-            vertexList[i].connectedTriangles.clear();
-        }
-        for( ; ! iter.isDone(); iter.next()){
-            status = iter.getVertices(faceVertices);
-            int count = (int) faceVertices.length();
-            for(int j=0;j<count;j++){
-                vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+1)%count]);
-                vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+count-1)%count]);
-            }
-        }
         // set tetrahedra
 		std::vector<Matrix4d> P;
-        makeEdgeList(faceList, edgeList);
-        makeTetList(tetMode, numPts, faceList, edgeList, vertexList, tetList);
-        tetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        getMeshData(data, input, inputGeom, mIndex, tetMode, pts, tetList, faceList, edgeList, vertexList, P);
         dim = removeDegenerate(tetMode, numPts, tetList, faceList, edgeList, vertexList, P);
-        tetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
         makeTetCenterList(tetMode, pts, tetList, tetCenter);
         numTet = (int)tetList.size()/4;
         PI.resize(numTet);
@@ -185,7 +152,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 double w=weightValue(data, mIndex, itGeo.index());
                 ptsWeight[i++] = (w>EPSILON) ? w : EPSILON;
             }
-            makeWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight, tetWeight);
+            makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight, tetWeight);
         }else if(stiffnessMode == SM_LEARN) {
             tetWeight.resize(numTet);
             std::vector<double> tetEnergy(numTet,0);
@@ -205,7 +172,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                     spts[i] << Mspts[i].x, Mspts[i].y, Mspts[i].z;
                 }
                 std::vector<Matrix4d> Q(numTet);
-                tetMatrix(tetMode, spts, tetList, faceList, edgeList, vertexList, Q);
+                makeTetMatrix(tetMode, spts, tetList, faceList, edgeList, vertexList, Q);
                 Matrix3d S,R;
                 for(int i=0;i<numTet;i++)  {
                     polarHigham((PI[i]*Q[i]).block(0,0,3,3), S, R);
@@ -416,51 +383,42 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
 
 // prepare transform matrix for each simplex
-    std::vector<Matrix4d> At(numTet);
+    std::vector<Matrix4d> A(numTet),blendedSE(numTet);
+    std::vector<Matrix3d> blendedR(numTet), blendedS(numTet);
+    std::vector<Vector4d> blendedL(numTet);
 
 #pragma omp parallel for
 	for (int j = 0; j < numTet; j++){
 		// blend matrix
 		if (blendMode == BM_SRL){
-			Matrix3d RR, SS = expSym(blendMat(logS, ws[j]));
+			blendedS[j] = expSym(blendMat(logS, ws[j]));
 			Vector3d l = blendMat(L, wl[j]);
-			if (frechetSum){
-				RR = frechetSO(R, wr[j]);
-			}
-			else{
-				RR = expSO(blendMat(logR, wr[j]));
-			}
-			At[j] = pad(SS*RR, l);
+            blendedR[j] = frechetSum ? frechetSO(R, wr[j]) : expSO(blendMat(logR, wr[j]));
+			A[j] = pad(blendedS[j]*blendedR[j], l);
 		}
 		else if (blendMode == BM_SES){
-			Matrix4d RR;
-			Matrix3d SS = expSym(blendMat(logS, ws[j]));
-			if (frechetSum){
-				RR = frechetSE(SE, wr[j]);
-			}
-			else{
-				RR = expSE(blendMat(logSE, wr[j]));
-			}
-			At[j] = pad(SS, Vector3d::Zero()) * RR;
+			blendedS[j] = expSym(blendMat(logS, ws[j]));
+            blendedSE[j] = frechetSum ? frechetSE(SE, wr[j]) : expSE(blendMat(logSE, wr[j]));
+			A[j] = pad(blendedS[j], Vector3d::Zero()) * blendedSE[j];
 		}
 		else if (blendMode == BM_LOG3){
-			Matrix3d RR = blendMat(logGL, wr[j]).exp();
+			blendedR[j] = blendMat(logGL, wr[j]).exp();
 			Vector3d l = blendMat(L, wl[j]);
-			At[j] = pad(RR, l);
+			A[j] = pad(blendedR[j], l);
 		}
 		else if (blendMode == BM_LOG4){
-			At[j] = blendMat(logAff, wr[j]).exp();
+			A[j] = blendMat(logAff, wr[j]).exp();
 		}
 		else if (blendMode == BM_QSL){
 			Vector4d q = blendQuat(quat, wr[j]);
 			Vector3d l = blendMat(L, wl[j]);
-			Matrix3d SS = blendMatLin(S, ws[j]);
+			blendedS[j] = blendMatLin(S, ws[j]);
 			Quaternion<double> Q(q);
-			Matrix3d RR = Q.matrix().transpose();
-			At[j] = pad(SS*RR, l);
+			blendedR[j] = Q.matrix().transpose();
+			A[j] = pad(blendedS[j]*blendedR[j], l);
 		}
 		else if (blendMode == BM_AFF){
-			At[j] = blendMatLin(Aff, wr[j]);
+			A[j] = blendMatLin(Aff, wr[j]);
 		}
 	}
 
@@ -471,7 +429,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     // iterate to determine vertices position
     for(int k=0;k<numIter;k++){
         // solve ARAP
-        arapG(At, PI, tetList, Aff, transWeight, G);
+        arapG(A, PI, tetList, Aff, transWeight, G);
         Sol = solver.solve(G);
         
         // set new vertices position
@@ -484,13 +442,18 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         // if iteration continues
         if(k+1<numIter || visualisationMode == VM_ENERGY){
             std::vector<Matrix4d> Q(numTet);
-            tetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q);
+            makeTetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q);
             Matrix3d S,R,newS,newR;
+            if(blendMode == BM_AFF || blendMode == BM_LOG4 || blendMode == BM_LOG3){
+                for(int i=0;i<numTet;i++){
+                    polarHigham(A[i].block(0,0,3,3), blendedS[i], blendedR[i]);
+                }
+            }
+            #pragma omp parallel for
             for(int i=0;i<numTet;i++){
-                polarHigham(At[i].block(0,0,3,3), S, R);
                 polarHigham((PI[i]*Q[i]).block(0,0,3,3), newS, newR);
                 tetEnergy[i] = (newS-Matrix3d::Identity()).squaredNorm();
-                At[i].block(0,0,3,3) = S*newR;
+                A[i].block(0,0,3,3) = blendedS[i]*newR;
             }
         }
     }
@@ -529,12 +492,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }else if(visualisationMode == VM_EFFECT){
             std:vector<double> wsum(numTet);
             for(int j=0;j<numTet;j++){
-                wsum[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
+                //wsum[j] = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
                 wsum[j]= visualisationMultiplier * wr[j][numPrb-1];
             }
             makePtsWeightList(tetMode, numPts, tetList, faceList, edgeList, vertexList, wsum, ptsColour);
         }
-        visualise(data, ptsColour);
+        visualise(data, outputGeom, ptsColour);
     }
     
     return MS::kSuccess;
@@ -545,24 +508,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
 /// harmonic weighting
 void probeDeformerARAPNode::harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode){
-    // face list
-    MStatus status;
-    MArrayDataHandle hInput = data.outputArrayValue( input, &status );
-    status = hInput.jumpToElement( mIndex );
-    MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
-    MFnMesh inputGeom(oInputGeom);
-    MIntArray count, triangles;
-    inputGeom.getTriangles( count, triangles );
-    std::vector<int> fList(triangles.length());
-    for(int i=0;i<triangles.length();i++){
-        fList[i]=triangles[i];
-    }
-    // tet list
-    std::vector<int> tList;
+    std::vector<int> fList,tList;
+    std::vector<vertex> vList;
+    std::vector<edge> eList;
     std::vector<Matrix4d> P;
+    int dim=getMeshData(data, input, inputGeom, mIndex, TM_FACE, pts, tList, fList, eList, vList, P);
     int numPts=(int)pts.size();
-    makeTetList(TM_FACE, numPts, fList, edgeList, vertexList, tList);
-    tetMatrix(TM_FACE, pts, tList, fList, edgeList, vertexList, P);
     int num = (int)tList.size()/4;
     // LHS
     std::vector<T> tripletListMat(0);
@@ -581,15 +532,15 @@ void probeDeformerARAPNode::harmonicWeight(MDataBlock& data, unsigned int mIndex
 	}
     // set hard constraint
     for(int i=0;i<numPrb;i++){
-        tripletListMat.push_back(T(numPts+num+i,closestPts[i],1));
-        tripletListMat.push_back(T(closestPts[i],numPts+num+i,1));
+        tripletListMat.push_back(T(dim+i,closestPts[i],1));
+        tripletListMat.push_back(T(closestPts[i],dim+i,1));
     }
-    SpMat H(numPts+num+numPrb, numPts+num+numPrb), G(numPts+num+numPrb,numPrb);
+    SpMat H(dim+numPrb, dim+numPrb), G(dim+numPrb,numPrb);
     H.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
     // factorise
     SparseLU<SpMat> weightSolver;
 //    SpSolver weightSolver;
-    //weightSolver.isSymmetric(true);
+    weightSolver.isSymmetric(true);
     weightSolver.compute(H);
     if(weightSolver.info() != Success){
         //        std::string error_mes = solver.lastErrorMessage();
@@ -610,8 +561,8 @@ void probeDeformerARAPNode::harmonicWeight(MDataBlock& data, unsigned int mIndex
         for(int j=0;j<numPts; j++){
             w_pt[j] = Sol.coeff(j,i);
         }
-        makeWeightList(tetMode, tetList, faceList, edgeList, vertexList, w_pt, w_tet);
-        for(int j=0;j<num; j++){
+        makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, w_pt, w_tet);
+        for(int j=0;j<wr.size(); j++){
             wr[j][i] = ws[j][i] = wl[j][i] = w_tet[j];
         }
     }
@@ -696,38 +647,6 @@ void probeDeformerARAPNode::arapG(const std::vector<Matrix4d>& At, const std::ve
     S.setFromTriplets(constraintList.begin(), constraintList.end());
     SpMat FS = numTet * F * S;
     G += MatrixXd(FS);
-}
-
-// visualise vertex assigned values
-void probeDeformerARAPNode::visualise(MDataBlock& data, std::vector<double>& ptsColour){
-    // load target mesh output
-    MStatus status;
-    MArrayDataHandle outputArray = data.outputArrayValue(outputGeom , &status );
-    MDataHandle hOutput = outputArray.inputValue(&status);
-    MFnMesh outMesh(hOutput.data());
-    MColorArray Colour;
-    MIntArray Index;
-    // set vertex colour
-    for(int i=0;i<ptsColour.size();i++){
-        Colour.append( ptsColour[i] ,0,0);
-        Index.append(i);
-    }
-    outMesh.setVertexColors(Colour, Index);
-}
-
-// read array of matrix attributes and convert them to Eigen matrices
-void probeDeformerARAPNode::readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m){
-    int numPrb=handle.elementCount();
-    m.resize(numPrb);
-    MMatrix mat;
-    for(int i=0;i<numPrb;i++){
-        handle.jumpToArrayElement(i);
-        mat=handle.inputValue().asMatrix();
-        m[i] << mat(0,0), mat(0,1), mat(0,2), mat(0,3),
-            mat(1,0), mat(1,1), mat(1,2), mat(1,3),
-            mat(2,0), mat(2,1), mat(2,2), mat(2,3),
-            mat(3,0), mat(3,1), mat(3,2), mat(3,3);
-    }
 }
 
 // create attributes
