@@ -22,7 +22,7 @@ typedef Triplet<double> T;
 
 #define ERROR_ARAP_PRECOMPUTE 1
 
-///
+// ARAP precompute with soft constraint
 int ARAPprecompute(const std::vector<Matrix4d>& tetMatrixInverse, const std::vector<int>& tetList,
                     const std::vector<double>& tetWeight, std::vector< std::map<int,double> >& constraint,
                                    double transWeight, int dim, SpMat& constraintMat, SpSolver& solver){
@@ -102,4 +102,48 @@ void ARAPSolve(const std::vector<Matrix4d>& A, const std::vector<Matrix4d>& tetM
     G += MatrixXd(FS);
     Sol = solver.solve(G);
 }
+
+// ARAP precompute with approx. hard constraint
+int ARAPprecomputeHard(const std::vector<Matrix4d>& tetMatrixInverse, const std::vector<int>& tetList,
+                   const std::vector<double>& tetWeight, std::vector< std::map<int,double> >& constraint,
+                   double transWeight, int dim, SpMat& constraintMat, SpSolver& solver){
+    int numTet = (int)tetList.size()/4;
+    std::vector<T> tripletListMat(0);
+    tripletListMat.reserve(numTet*16);
+    Matrix4d Hlist;
+	Matrix4d diag=Matrix4d::Identity();
+	diag(3,3)=transWeight;
+	for(int i=0;i<numTet;i++){
+		Hlist=tetWeight[i] * tetMatrixInverse[i].transpose()*diag*tetMatrixInverse[i];
+		for(int j=0;j<4;j++){
+			for(int k=0;k<4;k++){
+                tripletListMat.push_back(T(tetList[4*i+j],tetList[4*i+k],Hlist(j,k)));
+			}
+		}
+	}
+    // set hard constraint
+    int cur=0;
+    tripletListMat.resize(0);
+    std::vector<T> tripletListF(0);
+    std::map<int, double>::iterator iter;
+    for(int i=0;i<constraint.size();i++){
+        for(iter = constraint[i].begin(); iter != constraint[i].end(); iter++){
+            tripletListMat.push_back(T( iter->first, dim+cur, 1));
+            tripletListF.push_back(T( dim+cur, iter->first, 1));
+            cur++;
+        }
+    }
+    SpMat mat(dim+cur-1,dim+cur-1);
+    mat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    //
+    solver.compute(mat);
+    if(solver.info() != Success){
+        //        std::string error_mes = solver.lastErrorMessage();
+        MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
+        return ERROR_ARAP_PRECOMPUTE;
+    }
+    return 0;
+}
+
+
 
