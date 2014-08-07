@@ -13,6 +13,7 @@
 
 //#include "mayaHeaders.h"
 //#include "tetrise.h"
+#include <set>
 
 using namespace Tetrise;
 
@@ -92,4 +93,29 @@ void readMatrixArray(MArrayDataHandle& handle, std::vector<Matrix4d>& m){
         mat(3,0), mat(3,1), mat(3,2), mat(3,3);
     }
 }
+
+////
+void outputAttr(MDataBlock& data, MObject& attribute, std::vector<double>& values){
+    MStatus status;
+    MArrayDataBuilder builder(attribute, (int)values.size(), &status);
+    for(int i=0;i<values.size();i++){
+        MDataHandle outHandle = builder.addElement(i);
+        outHandle.set(values[i]);
+    }
+    MArrayDataHandle outputArray = data.outputArrayValue(attribute);
+    outputArray.set(builder);
+}
+
+////
+void deleteAttr(MDataBlock& data, MObject& attribute, std::set<int>& indices){
+    MStatus status;
+    MArrayDataHandle outputArray = data.outputArrayValue(attribute);
+    MArrayDataBuilder builder=outputArray.builder();
+    std::set<int>::iterator iter;
+    for(iter = indices.begin(); iter != indices.end(); iter++){
+        builder.removeElement(*iter);
+    }
+    outputArray.set(builder);
+}
+
 

@@ -10,6 +10,7 @@
 
 #include "StdAfx.h"
 #include "probeDeformer.h"
+#include <set>
 
 using namespace Eigen;
 using namespace AffineLib;
@@ -71,10 +72,24 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     double visualisationMultiplier = data.inputValue(aVisualisationMultiplier).asDouble();
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
+    if(hMatrixArray.elementCount() > hInitMatrixArray.elementCount() || hMatrixArray.elementCount() == 0 || blendMode == BM_OFF){
+        return MS::kSuccess;
+    }else if(hMatrixArray.elementCount() < hInitMatrixArray.elementCount()){
+        std::set<int> indices;
+        for(int i=0;i<hInitMatrixArray.elementCount();i++){
+            hInitMatrixArray.jumpToArrayElement(i);
+            indices.insert(hInitMatrixArray.elementIndex());
+        }
+        for(int i=0;i<hMatrixArray.elementCount();i++){
+            hMatrixArray.jumpToArrayElement(i);
+            indices.erase(hMatrixArray.elementIndex());
+        }
+        deleteAttr(data, aInitMatrix, indices);
+        deleteAttr(data, aProbeWeight, indices);
+    }
     bool isNumProbeChanged = (numPrb != hMatrixArray.elementCount());
     numPrb = hMatrixArray.elementCount();
-    if(numPrb != hInitMatrixArray.elementCount() || numPrb==0 || blendMode == BM_OFF)
-        return MS::kSuccess;
+    //
 	if( ! rotationCosistency || numPrb != prevNs.size()){
 		prevThetas.clear();
 		prevThetas.resize(numPrb, 0.0);
@@ -143,7 +158,6 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 
     // weight computation
     if(!data.isClean(aComputeWeight) || isNumProbeChanged){
-        status = data.setClean(aComputeWeight);
         // load probe weights
         std::vector<double> probeWeight(numPrb), probeRadius(numPrb);
         MArrayDataHandle handle = data.inputArrayValue(aProbeWeight);
@@ -214,7 +228,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             for(int i=0;i<triangles.length();i++){
                 faceList[i]=triangles[i];
             }
-            harmonicWeight(probeWeight,faceList,pts,dist);
+            if(harmonicWeight(probeWeight,faceList,pts,dist)>1) return MS::kFailure;
         }
         // normalise
         for(int j=0;j<numPts;j++){
@@ -237,6 +251,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
                 }
             }
         }
+        status = data.setClean(aComputeWeight);
     }
     
 #pragma omp parallel for
@@ -315,7 +330,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
 }
 
 /// harmonic weighting
-void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
+int probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
                                            const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist){
     std::vector<Matrix4d> P;
     int numPts=(int)pts.size();
@@ -325,6 +340,7 @@ void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, c
     makeTetList(TM_FACE, numPts, faceList, dummyEdgeList, dummyVertexList, tetList);
     makeTetMatrix(TM_FACE, pts, tetList, faceList, dummyEdgeList, dummyVertexList, P);
     int num = (int)tetList.size()/4;
+    int dim = numPts + num;
     // find closest points to probes
     std::vector<int> closestPts(numPrb);
     for(int i=0;i<numPrb;i++){
@@ -352,27 +368,35 @@ void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, c
 			}
 		}
 	}
-    // set hard constraint
+    SpMat mat(dim, dim);
+    mat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    // set soft constraint
+    tripletListMat.resize(0);
+    std::vector<T> tripletListF(0);
     for(int i=0;i<numPrb;i++){
-        tripletListMat.push_back(T(numPts+num+i,closestPts[i],1));
-        tripletListMat.push_back(T(closestPts[i],numPts+num+i,1));
+        tripletListMat.push_back(T( closestPts[i], i, 1));
+        tripletListF.push_back(T( i,closestPts[i], 1));
     }
-    SpMat H(numPts+num+numPrb, numPts+num+numPrb), G(numPts+num+numPrb,numPrb);
-    H.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    SpMat constraintMat(dim,numPrb);
+    constraintMat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    SpMat F(numPrb,dim);
+    F.setFromTriplets(tripletListF.begin(), tripletListF.end());
+    mat += num * constraintMat * F;
     // factorise
-    SparseLU<SpMat> weightSolver;
-    //weightSolver.isSymmetric(true);
-    weightSolver.compute(H);
+    SimplicialLDLT<SpMat> weightSolver;
+    weightSolver.compute(mat);
     if(weightSolver.info() != Success){
         //        std::string error_mes = solver.lastErrorMessage();
         MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
+        return 1;
     }
     // RHS
     tripletListMat.clear();
     tripletListMat.reserve(numPrb);
     for(int i=0;i<numPrb;i++){
-        tripletListMat.push_back(T( numPts+num+i, i, probeWeight[i]));
+        tripletListMat.push_back(T( closestPts[i], i, num*probeWeight[i]));
     }
+    SpMat G(dim,numPrb);
     G.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
     // solve
     SpMat Sol = weightSolver.solve(G);
@@ -381,6 +405,7 @@ void probeDeformerNode::harmonicWeight(const std::vector<double>& probeWeight, c
             wr[j][i] = ws[j][i] = wl[j][i] = Sol.coeff(j,i);
         }
     }
+    return 0;
 }
 
 

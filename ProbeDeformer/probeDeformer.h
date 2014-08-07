@@ -48,7 +48,7 @@ public:
     static MObject      aVisualisationMultiplier;
 
 private:
-    void harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
+    int harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
                         const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist);
 
 	std::vector<Vector3d> prevNs;

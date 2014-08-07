@@ -54,15 +54,29 @@ class UI_ProbeDeformer:
                 frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
                     self.createRamp(node)
-                    self.createCommonAttr(node)
-                    with pm.rowLayout(numberOfColumns=1) :
+                    self.createCommonAttr(node, deformerTypes[0])
+                    indices = cmds.getAttr(node+".pm", multiIndices=True)
+                    if indices:
+                        for j in indices:
+                            with pm.rowLayout(numberOfColumns=1) :
+                                pm.attrFieldSliderGrp(label=node.prw[j].getAlias(), min=0, max=10.0, attribute=node.prw[j])
+                    with pm.rowLayout(numberOfColumns=3) :
                         pm.attrControlGrp( label="Frechet sum", attribute= node.fs)
+                        pm.attrControlGrp( label="visualisation", attribute= node.vm)
+                        pm.attrFieldSliderGrp( label="visualisation multiplier", min=0.001, max=1000, attribute=node.vmp)
+
             # "probeDeformerARAP" specific
             for node in self.deformers[1]:
                 frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
                     self.createRamp(node)
-                    self.createCommonAttr(node)
+                    self.createCommonAttr(node, deformerTypes[1])
+                    indices = cmds.getAttr(node+".pm", multiIndices=True)
+                    if indices:
+                        for j in indices:
+                            with pm.rowLayout(numberOfColumns=2) :
+                                pm.attrFieldSliderGrp(label=node.prw[j].getAlias(), min=0, max=1.0, attribute=node.prw[j])
+                                pm.attrFieldSliderGrp(label=node.prcr[j].getAlias(), min=0, max=1.0, attribute=node.prcr[j])
                     with pm.rowLayout(numberOfColumns=3) :
                         pm.button( l="Set supervisor", c=pm.Callback( self.setSupervisor, node))
                         pm.attrControlGrp( label="tet mode", attribute= node.tm)
@@ -83,7 +97,7 @@ class UI_ProbeDeformer:
                 frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
                 with frameLayout:
                     self.createRamp(node)
-                    self.createCommonAttr(node)
+                    self.createCommonAttr(node, deformerTypes[2])
                     with pm.rowLayout(numberOfColumns=1) :
                         pm.attrControlGrp( label="translation mode", attribute= node.tm)
 
@@ -93,16 +107,37 @@ class UI_ProbeDeformer:
             cmds.createNode('probeLocator')
             return
         # get transform nodes for the selected objects
-        meshes = pm.selected(tr=1)
-        if not meshes:
+        transforms = pm.selected(tr=1)
+        if not transforms:
             return
-        pm.select( meshes[-1])       # the deformer is attached to the last selected object
-        deformer = pm.ls(cmds.deformer(type=deformerType)[0])[0]
-        for i in range(len(meshes)-1):
-            cmds.connectAttr(meshes[i]+".worldMatrix", deformer+".pm[%s]" %(i))  # connect current matrices
-        for i in range(len(meshes)-1):    # to avoid uncessary ARAP computation, we divide into two for loops
-            deformer.ipm[i].set(meshes[i].worldMatrix.get()) # set initial matrices
+        pm.select( transforms[-1])       # the deformer is attached to the last selected object
+        node = pm.ls(cmds.deformer(type=deformerType)[0])[0]
         cmds.makePaintable(deformerType, 'weights', attrType='multiFloat', shapeMode='deformer')
+        if len(transforms)>1:
+            self.addProbe(node,deformerType,transforms[:-1])
+        self.updateUI()
+
+    # add selected transform as a new probe
+    def addProbe(self,node,deformerType,newProbes):
+        indexes = cmds.getAttr(node+".pm", multiIndices=True)
+        if not indexes:
+            n=0
+        else:
+            n=indexes[-1]+1
+        # connect pm first to avoid unnecessary arap computations
+        for j in range(len(newProbes)):
+            cmds.connectAttr(newProbes[j]+".worldMatrix", node+".pm[%s]" %(j+n))
+            if deformerType=="probeDeformerARAP" or deformerType=="probeDeformer":
+                pm.aliasAttr(newProbes[j].name()+"_weight%s" %(j+n), node.prw[j+n].name())
+            if deformerType=="probeDeformerARAP":
+                pm.aliasAttr(newProbes[j].name()+"_constraintRadius%s" %(j+n), node.prcr[j+n].name())
+        for j in range(len(newProbes)):
+            node.ipm[j+n].set(newProbes[j].worldMatrix.get())
+
+    # add selected transform as a new probe
+    def addSelectedProbe(self,node,deformerType):
+        newProbes = pm.selected(tr=1)
+        self.addProbe(node,deformerType,newProbes)
         self.updateUI()
 
     # delete deformer node
@@ -120,24 +155,9 @@ class UI_ProbeDeformer:
             cmds.connectAttr(shape+".outMesh", node.name()+".supervisedMesh[%s]" %(i), force=True)
         self.updateUI()
 
-    # set the selected probes's current matrix as the initial matrix
-    def resetProbe(self,node,j):
-        node.ipm[j].set(self.probes[node][j].worldMatrix.get())
-
-    # delete a probe (not working now)
+    # delete a probe
     def deleteProbe(self,node,j):
-        cmds.deleteAttr( [node+".pm[%s]" %(j), node+".ipm[%s]" %(j) ] )
-        self.updateUI()
-
-    # add selected transform as a new probe
-    def addProbe(self,node):
-        numOldProbes = len(self.probes[node])
-        newProbes = pm.selected(tr=1)
-        self.probes[node].extend(newProbes)
-        for j in range(numOldProbes,len(self.probes[node])):
-            node.ipm[j].set(self.probes[node][j].worldMatrix.get())
-        for j in range(numOldProbes,len(self.probes[node])):
-            cmds.connectAttr(self.probes[node][j]+".worldMatrix", node+".pm[%s]" %(j))
+        cmds.disconnectAttr(self.probes[node][j]+".worldMatrix", node+".pm[%s]" %(j) )
         self.updateUI()
 
     # redraw UI
@@ -156,14 +176,13 @@ class UI_ProbeDeformer:
             pm.text(l='L')
             pm.gradientControl( at='%s.wcl' % node.name() )
 
-    def createCommonAttr(self,node):
-        with pm.rowLayout(numberOfColumns=len(self.probes[node])+3) :
+    def createCommonAttr(self,node,deformerType):
+        with pm.rowLayout(numberOfColumns=len(self.probes[node])+2) :
             pm.button( l="Delete deformer", c=pm.Callback( self.deleteNode, node))
-            pm.button( l="Add selection to probes", c=pm.Callback( self.addProbe, node) )
-            pm.text(l="delete probe")
+            pm.button( l="Add selection to probes", c=pm.Callback( self.addSelectedProbe, node, deformerType) )
             for j in range(len(self.probes[node])):
                 pm.button( l=self.probes[node][j].name(), c=pm.Callback( self.deleteProbe, node, j) )
-        with pm.rowLayout(numberOfColumns=3) :
+        with pm.rowLayout(numberOfColumns=2) :
             pm.attrControlGrp( label="blend mode", attribute= node.bm)
             #            pm.attrControlGrp( label="world mode", attribute= node.worldMode)
             pm.attrControlGrp( label="rotation consistency", attribute= node.rc)

@@ -11,15 +11,9 @@
 #include "affinelib.h"
 #include "tetrise.h"
 #include "MeshMaya.h"
+#include "ARAP.h"
 
 using namespace Eigen;
-
-
-typedef SparseMatrix<double> SpMat;
-typedef SimplicialLDLT<SpMat> SpSolver;
-//    SimplicialLLT<SpMat>;
-//    SparseLU<SpMat>;
-typedef Triplet<double> T;
 
 
 //deformer
@@ -63,10 +57,6 @@ public:
     static MObject      aProbeConstraintRadius;
     
 private:
-	void arapHI(const std::vector<Matrix4d>& PI, const std::vector<int>& tetList, double transWeight);
-	void arapG(const std::vector< Matrix4d>& At, const std::vector<Matrix4d>& PI,
-                  const std::vector<int>& tetList, const std::vector<Matrix4d>& Aff,
-                double transWeight, MatrixXd& G);
     void harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode);
     // variables
 	std::vector<Vector3d> prevNs;   // for rotation consistency
@@ -88,5 +78,5 @@ private:
     std::vector< std::map<int,double> > constraint;  // if constraint[i] contains {j:x}, it means i-th probe constraints j-th point with weight x
     std::vector< std::vector<double> > dist;    // dist[j][i] is the distance from j-th tet to i-th probe
     SpSolver solver;   // ARAP solver
-    SpMat F;                // ARAP constraint matrix
+    SpMat constraintMat;                // ARAP constraint matrix
 };
