@@ -11,9 +11,6 @@
 
 #pragma once
 
-// uncomment if you use MKL
-// #define  EIGEN_USE_MKL_ALL
-
 #include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
@@ -509,25 +506,25 @@ namespace Tetrise{
         }
     }
     
+    /// compute distance between a line segment (ab) and a point p
     double distPtLin(Vector3d p,Vector3d a,Vector3d b){
-        /// compute squared distance between a line segment (ab) and a point p
         double t= (a-b).dot(p-b)/(a-b).squaredNorm();
         if(t>1){
-            return (a-p).squaredNorm();
+            return (a-p).norm();
         }else if(t<0){
-            return (b-p).squaredNorm();
+            return (b-p).norm();
         }else{
-            return (t*(a-b)-(p-b)).squaredNorm();
+            return (t*(a-b)-(p-b)).norm();
         }
     }
     
+    /// compute distance between a triangle (abc) and a point p
     double distPtTri(Vector3d p, Vector3d a, Vector3d b, Vector3d c){
-        /// compute squared distance between a triangle (abc) and a point p
         /// if p is in the outer half-space, it returns HUGE_VAL
         double s[4];
         Vector3d n=(b-a).cross(c-a);
         if(n.squaredNorm()<EPSILON){
-            return (p-a).squaredNorm();
+            return (p-a).norm();
         }
         double k=n.dot(a-p);
         if(k<0) return HUGE_VAL;
@@ -540,7 +537,7 @@ namespace Tetrise{
         b(2)-a(2), c(2)-a(2), n(2)-a(2);
         Vector3d v = A.inverse()*(p-a);  // barycentric coordinate of p
         if(v(0)>0 && v(1)>0 && v(0)+v(1)<1){
-            s[3]=k*k;
+            s[3]=k;
         }else{
             s[3] = HUGE_VAL;
         }

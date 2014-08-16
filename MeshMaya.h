@@ -17,6 +17,93 @@
 
 using namespace Tetrise;
 
+
+
+// get face list
+int makeFaceTet(MDataBlock& data, MObject& input, MObject& inputGeom, unsigned int mIndex, const std::vector<Vector3d>& pts,
+                std::vector<int>& faceList, std::vector<int>& tetList, std::vector<Matrix4d>& tetMatrix){
+    // returns total number of pts including ghost ones
+    // read mesh data
+    int numPts = (int) pts.size();
+    MStatus status;
+    MArrayDataHandle hInput = data.outputArrayValue( input, &status );
+    CHECK_MSTATUS_AND_RETURN_IT( status );
+    status = hInput.jumpToElement( mIndex );
+    CHECK_MSTATUS_AND_RETURN_IT( status );
+    MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
+    MFnMesh inputMesh(oInputGeom);
+    // face list
+    MIntArray count, triangles;
+    inputMesh.getTriangles( count, triangles );
+    faceList.resize(triangles.length());
+    for(int i=0;i<triangles.length();i++){
+        faceList[i]=triangles[i];
+    }
+    //
+    std::vector<vertex> vList;
+    std::vector<edge> eList;
+    makeTetList(TM_FACE, numPts, faceList, eList, vList, tetList);
+    makeTetMatrix(TM_FACE, pts, tetList, faceList, eList, vList, tetMatrix);
+    return numPts + (int)tetList.size()/4;
+}
+
+// make face list
+void makeFaceList(MObject& mesh, std::vector<int>& faceList, std::vector<int>& faceCount,
+                  bool isSymmetric=false){
+    if( isSymmetric ){
+        MItMeshPolygon iter(mesh);
+        MIntArray faceVertices;
+        faceList.clear();
+        for(int i=0; ! iter.isDone(); i++){
+            iter.getVertices(faceVertices);
+            int count=faceVertices.length();
+            if(count==3){
+                faceCount.push_back(1);
+                faceList.push_back(faceVertices[0]);
+                faceList.push_back(faceVertices[1]);
+                faceList.push_back(faceVertices[2]);
+            }else{
+                for(int j=0;j<count;j++){
+                    faceCount.push_back(count);
+                    faceList.push_back(faceVertices[j]);
+                    faceList.push_back(faceVertices[(j+1) % count]);
+                    faceList.push_back(faceVertices[(j+2) % count]);
+                }
+            }
+            iter.next();
+        }
+    }else{
+        MFnMesh fnMesh(mesh);
+        MIntArray count, triangles;
+        fnMesh.getTriangles( count, triangles );
+        faceCount.resize(triangles.length()/3,1);
+        faceList.resize(triangles.length());
+        for(int i=0;i<triangles.length();i++){
+            faceList[i]=triangles[i];
+        }
+    }
+}
+
+// vertex list
+void makeVertexList(MObject& mesh, std::vector<vertex>& vertexList){
+    int numPts = MFnMesh(mesh).numVertices();
+    MItMeshPolygon iter(mesh);
+    MIntArray faceVertices;
+    vertexList.resize(numPts);
+    for(int i=0;i<numPts;i++){
+        vertexList[i].index = i;
+        vertexList[i].connectedTriangles.clear();
+    }
+    for( ; ! iter.isDone(); iter.next()){
+        iter.getVertices(faceVertices);
+        int count = (int) faceVertices.length();
+        for(int j=0;j<count;j++){
+            vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+1)%count]);
+            vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+count-1)%count]);
+        }
+    }
+}
+
 // get mesh data
 int getMeshData(MDataBlock& data, MObject& input, MObject& inputGeom, unsigned int mIndex,
                 short tetMode, const std::vector<Vector3d>& pts, std::vector<int>& tetList,
@@ -31,31 +118,9 @@ int getMeshData(MDataBlock& data, MObject& input, MObject& inputGeom, unsigned i
     status = hInput.jumpToElement( mIndex );
     CHECK_MSTATUS_AND_RETURN_IT( status );
     MObject oInputGeom = hInput.outputValue().child( inputGeom ).asMesh();
-    MFnMesh inputMesh(oInputGeom);
-    // face list
-    MIntArray count, triangles;
-    inputMesh.getTriangles( count, triangles );
-    int numFaces = triangles.length()/3;
-    faceList.resize(3*numFaces);
-    for(int i=0;i<3*numFaces;i++){
-        faceList[i]=triangles[i];
-    }
-    // vertex list
-    MItMeshPolygon iter(oInputGeom);
-    MIntArray faceVertices;
-    vertexList.resize(numPts);
-    for(int i=0;i<numPts;i++){
-        vertexList[i].index = i;
-        vertexList[i].connectedTriangles.clear();
-    }
-    for( ; ! iter.isDone(); iter.next()){
-        status = iter.getVertices(faceVertices);
-        int count = (int) faceVertices.length();
-        for(int j=0;j<count;j++){
-            vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+1)%count]);
-            vertexList[faceVertices[j]].connectedTriangles.push_back(faceVertices[(j+count-1)%count]);
-        }
-    }
+    std::vector<int> faceCount;
+    makeFaceList(oInputGeom, faceList, faceCount);
+    makeVertexList(oInputGeom, vertexList);
     makeEdgeList(faceList, edgeList);
     int dim=makeTetList(tetMode, numPts, faceList, edgeList, vertexList, tetList);
     makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, tetMat);

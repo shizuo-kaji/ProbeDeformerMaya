@@ -11,6 +11,7 @@
 #pragma once
 
 #include <map>
+#include <Eigen/Sparse>
 
 using namespace Eigen;
 
@@ -133,7 +134,7 @@ int ARAPprecomputeHard(const std::vector<Matrix4d>& tetMatrixInverse, const std:
             cur++;
         }
     }
-    SpMat mat(dim+cur-1,dim+cur-1);
+    SpMat mat(dim+cur,dim+cur);
     mat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
     //
     solver.compute(mat);
@@ -141,6 +142,51 @@ int ARAPprecomputeHard(const std::vector<Matrix4d>& tetMatrixInverse, const std:
         //        std::string error_mes = solver.lastErrorMessage();
         MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
         return ERROR_ARAP_PRECOMPUTE;
+    }
+    return 0;
+}
+
+
+/// harmonic weighting
+int harmonicWeight(int dim, const std::vector<Matrix4d>& tetMatrix, const std::vector<int>& tList, const std::vector<int>& fList,
+                   std::vector< std::map<int,double> >& weightConstraint, std::vector<double>& weightConstraintValue,
+                   std::vector< std::vector<double> >& ptsWeight){
+    int num = (int)tList.size()/4;
+    int numPrb = (int)weightConstraint.size();
+    std::vector<Matrix4d> PI(num);
+    for(int i=0;i<num;i++){
+        PI[i]=tetMatrix[i].inverse().eval();
+    }
+    // LHS
+    SpSolver weightSolver;
+    SpMat weightConstraintMat;
+    std::vector<double> tetWeight(num,1.0);
+    if(ARAPprecompute(PI, tList, tetWeight, weightConstraint, 0, dim, weightConstraintMat, weightSolver)){
+        MGlobal::displayInfo("An error occurred in Harmonic field computation.");
+        return 1;
+    }
+    // RHS
+    std::vector<T> tripletListMat(0);
+    std::map<int, double>::iterator iter;
+    int cur=0;
+    for(int i=0;i<numPrb;i++){
+        for(iter = weightConstraint[i].begin(); iter != weightConstraint[i].end(); iter++){
+            tripletListMat.push_back(T( cur, i, weightConstraintValue[cur]));
+            cur++;
+        }
+    }
+    SpMat F(cur,numPrb);
+    F.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
+    SpMat G = num * weightConstraintMat * F;
+    // solve
+    SpMat Sol = weightSolver.solve(G);
+    int numPts = dim-num;
+    ptsWeight.resize(numPrb);
+    for (int i=0;i<numPrb; i++){
+        ptsWeight[i].resize(numPts);
+        for(int j=0;j<numPts; j++){
+            ptsWeight[i][j] = Sol.coeff(j,i);
+        }
     }
     return 0;
 }

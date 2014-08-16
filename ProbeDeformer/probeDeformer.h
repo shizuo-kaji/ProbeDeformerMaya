@@ -11,6 +11,7 @@
 #include "affinelib.h"
 #include "tetrise.h"
 #include "MeshMaya.h"
+#include "ARAP.h"
 
 using namespace Eigen;
 
@@ -21,7 +22,7 @@ typedef Triplet<double> T;
 class probeDeformerNode : public MPxDeformerNode
 {
 public:
-    probeDeformerNode(): numPrb(0) {};
+    probeDeformerNode(): numPrb(0), numPts(0) {};
     virtual MStatus deform( MDataBlock& data, MItGeometry& itGeo, const MMatrix &localToWorldMatrix, unsigned int mIndex );
 	virtual MStatus accessoryNodeSetup( MDagModifier& cmd );
     static  void*   creator();
@@ -38,7 +39,8 @@ public:
 	static MObject		aWeightCurveR;
 	static MObject		aWeightCurveS;
 	static MObject		aWeightCurveL;
-	static MObject		aMaxDist;
+	static MObject		aEffectRadius;
+    static MObject      aNormaliseWeight;
 	static MObject		aRotationConsistency;
 	static MObject		aFrechetSum;
     static MObject      aNormExponent;
@@ -48,11 +50,8 @@ public:
     static MObject      aVisualisationMultiplier;
 
 private:
-    int harmonicWeight(const std::vector<double>& probeWeight, const std::vector<int>& faceList,
-                        const std::vector<Vector3d>& pts, const std::vector< std::vector<double> >& dist);
-
-	std::vector<Vector3d> prevNs;
-	std::vector<double> prevThetas;
+	std::vector<Matrix4d> logSE;
+	std::vector<Matrix3d> logR;
     std::vector< std::vector<double> > wr,ws,wl;
-    int numPrb;
+    int numPrb, numPts;
 };

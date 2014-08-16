@@ -48,6 +48,8 @@
     </Link>
     <ClCompile>
       <AdditionalIncludeDirectories>$(HOME)\Dropbox\maple\mayac\AffiLib;$(HOME)\Dropbox\maple\mayac;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <EnableEnhancedInstructionSet>AdvancedVectorExtensions</EnableEnhancedInstructionSet>
+      <OpenMPSupport>false</OpenMPSupport>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -57,6 +59,11 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="..\affinelib.h" />
+    <ClInclude Include="..\ARAP.h" />
+    <ClInclude Include="..\deformerConst.h" />
+    <ClInclude Include="..\MeshMaya.h" />
+    <ClInclude Include="..\tetrise.h" />
     <ClInclude Include="ProbeDeformerARAP\probeDeformerARAP.h" />
     <ClInclude Include="ProbeDeformer\mayaHeaders.h" />
     <ClInclude Include="ProbeDeformer\StdAfx.h" />

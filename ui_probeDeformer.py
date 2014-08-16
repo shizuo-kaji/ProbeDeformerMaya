@@ -14,7 +14,8 @@
 import maya.cmds as cmds
 import pymel.core as pm
 
-deformerTypes = ["probeDeformer","probeDeformerARAP","probeDeformerPy","probeLocator"]
+#deformerTypes = ["probeDeformer","probeDeformerARAP","probeDeformerPy","probeLocator"]
+deformerTypes = ["probeDeformer","probeDeformerARAP","probeLocator"]
 
 for type in deformerTypes:
     try:
@@ -93,13 +94,13 @@ class UI_ProbeDeformer:
                         pm.attrControlGrp( label="stiffness mode", attribute=node.stiffnessMode)
 
             # "probeDeformerPy" specific
-            for node in self.deformers[2]:
-                frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
-                with frameLayout:
-                    self.createRamp(node)
-                    self.createCommonAttr(node, deformerTypes[2])
-                    with pm.rowLayout(numberOfColumns=1) :
-                        pm.attrControlGrp( label="translation mode", attribute= node.tm)
+#            for node in self.deformers[2]:
+#                frameLayout = pm.frameLayout( label=node.name(), collapsable = True)
+#                with frameLayout:
+#                    self.createRamp(node)
+#                    self.createCommonAttr(node, deformerTypes[2])
+#                    with pm.rowLayout(numberOfColumns=1) :
+#                        pm.attrControlGrp( label="translation mode", attribute= node.tm)
 
     # create deformer node and connection
     def initPlugin(self, deformerType):
@@ -186,8 +187,9 @@ class UI_ProbeDeformer:
             pm.attrControlGrp( label="blend mode", attribute= node.bm)
             #            pm.attrControlGrp( label="world mode", attribute= node.worldMode)
             pm.attrControlGrp( label="rotation consistency", attribute= node.rc)
-        with pm.rowLayout(numberOfColumns=3) :
+        with pm.rowLayout(numberOfColumns=4) :
             pm.attrControlGrp( label="Weight mode", attribute= node.wtm)
-            pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=node.md)
+            pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=node.er)
+            pm.attrControlGrp( label="normalise weight", attribute= node.nw)
             pm.attrControlGrp( label="normExponent", attribute=node.ne)
 

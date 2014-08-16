@@ -40,7 +40,7 @@ public:
 	static MObject		aWeightCurveR;
 	static MObject		aWeightCurveS;
 	static MObject		aWeightCurveL;
-	static MObject		aMaxDist;     // global effect radius of probes
+	static MObject		aEffectRadius;     // global effect radius of probes
     static MObject      aTransWeight; // how much translation part affects in ARAP computation
     static MObject      aConstraintWeight; // global constraint weight of probes
 	static MObject		aRotationConsistency;
@@ -55,12 +55,12 @@ public:
     static MObject      aStiffness;
     static MObject      aProbeWeight;
     static MObject      aProbeConstraintRadius;
+    static MObject      aNormaliseWeight;
     
 private:
-    void harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode);
     // variables
-	std::vector<Vector3d> prevNs;   // for rotation consistency
-	std::vector<double> prevThetas; // for rotation consistency
+	std::vector<Matrix4d> logSE;   // for rotation consistency
+	std::vector<Matrix3d> logR;   // for rotation consistency
 	std::vector<Matrix4d> PI;   // inverse of initial tet matrix
     std::vector<Vector3d> probeCenter; // initial location of probes
     std::vector<Vector3d> tetCenter; // center of tets
@@ -77,6 +77,7 @@ private:
     int dim; // total number of pts including the "ghost" added for forming tetrahedra
     std::vector< std::map<int,double> > constraint;  // if constraint[i] contains {j:x}, it means i-th probe constraints j-th point with weight x
     std::vector< std::vector<double> > dist;    // dist[j][i] is the distance from j-th tet to i-th probe
+    std::vector< std::vector<double> > distPts; // distPts[i][j] is the distance from i-th probe to j-th pt; DIFFERENT ORDER FROM ABOVE
     SpSolver solver;   // ARAP solver
     SpMat constraintMat;                // ARAP constraint matrix
 };

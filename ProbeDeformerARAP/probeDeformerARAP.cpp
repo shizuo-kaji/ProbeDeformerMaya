@@ -14,6 +14,7 @@
 #include "StdAfx.h"
 #include <set>
 #include "probeDeformerARAP.h"
+#include "deformerConst.h"
 
 // parametrisation mode
 #define BM_SRL 0
@@ -24,32 +25,6 @@
 #define BM_AFF 10
 #define BM_OFF -1
 
-// weight mode
-#define WM_INV_DISTANCE 0
-#define WM_CUTOFF_DISTANCE 1
-#define WM_DRAW 2
-#define WM_HARMONIC 3
-
-// constraint mode
-#define CONSTRAINT_NEIBOUR 0
-#define CONSTRAINT_CLOSEST 1
-
-// stiffness mode
-#define SM_NONE 0
-#define SM_PAINT 1
-#define SM_LEARN 2
-
-// visualisation mode
-#define VM_OFF 0
-#define VM_ENERGY 1
-#define VM_EFFECT 2
-#define VM_CONSTRAINT 3
-#define VM_STIFFNESS 4
-
-// error codes
-#define NUMPRB_AND_ATTR_DIFFERENT 2
-#define INCOMPATIBLE_MESH 3
-#define ERROR_ATTR 4
 
 using namespace Eigen;
 using namespace AffineLib;
@@ -67,7 +42,7 @@ MObject probeDeformerARAPNode::aWeightMode;
 MObject probeDeformerARAPNode::aWeightCurveR;
 MObject probeDeformerARAPNode::aWeightCurveS;
 MObject probeDeformerARAPNode::aWeightCurveL;
-MObject probeDeformerARAPNode::aMaxDist;
+MObject probeDeformerARAPNode::aEffectRadius;
 MObject probeDeformerARAPNode::aTransWeight;
 MObject probeDeformerARAPNode::aConstraintWeight;
 MObject probeDeformerARAPNode::aRotationConsistency;
@@ -83,6 +58,7 @@ MObject probeDeformerARAPNode::aStiffness;
 MObject probeDeformerARAPNode::aProbeWeight;
 MObject probeDeformerARAPNode::aProbeConstraintRadius;
 MObject probeDeformerARAPNode::aComputeWeight;
+MObject probeDeformerARAPNode::aNormaliseWeight;
 
 void* probeDeformerARAPNode::creator() { return new probeDeformerARAPNode; }
  
@@ -137,7 +113,6 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     int numTet = (int)tetList.size()/4;
     // (re)compute ARAP
     if(!data.isClean(aARAP) || isNumProbeChanged){
-        status = data.setClean(aARAP);
         // load points list
         if(worldMode){
             for(int j=0; j<numPts; j++ )
@@ -219,18 +194,18 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }
 
         // find constraint points
-        std::vector< std::vector<double> > d(numPrb);
+        distPts.resize(numPrb);
         closestPts.resize(numPrb);
         constraint.resize(numPrb);
         for(int i=0;i<numPrb;i++){
             constraint[i].clear();
-            d[i].resize(numPts);
+            distPts[i].resize(numPts);
             closestPts[i] = 0;
             double min_d = HUGE_VAL;
             for(int j=0;j<numPts;j++){
-                d[i][j]=(pts[j]-probeCenter[i]).norm();
-                if( d[i][j] < min_d){
-                    min_d = d[i][j];
+                distPts[i][j]=(pts[j]-probeCenter[i]).norm();
+                if( distPts[i][j] < min_d){
+                    min_d = distPts[i][j];
                     closestPts[i] = j;
                 }
             }
@@ -249,8 +224,8 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             for(int i=0;i<numPrb;i++){
                 double r = constraintRadius * probeConstraintRadius[i];
                 for(int j=0;j<numPts;j++){
-                    if(d[i][j]<r){
-                        constraint[i][j] = constraintWeight * pow((r-d[i][j])/r,normExponent);
+                    if(distPts[i][j]<r){
+                        constraint[i][j] = constraintWeight * pow((r-distPts[i][j])/r,normExponent);
                     }
                 }
             }
@@ -259,11 +234,11 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 constraint[i][closestPts[i]] = constraintWeight;
             }
         }
-        
-
         // prepare ARAP solver
         isError = ARAPprecompute(PI, tetList, tetWeight, constraint, transWeight, dim, constraintMat, solver);
         if(isError>0) return MS::kFailure;
+        // END of precomputation
+        status = data.setClean(aARAP);
     }
     
     
@@ -277,13 +252,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             isError = ERROR_ATTR;
             return MS::kFailure;
         }
-        status = data.setClean(aComputeWeight);
-        double maxDist = data.inputValue( aMaxDist ).asDouble();
+        double effectRadius = data.inputValue( aEffectRadius ).asDouble();
         std::vector<double> probeWeight(numPrb), probeRadius(numPrb);
         for(int i=0;i<numPrb;i++){
             handle.jumpToArrayElement(i);
             probeWeight[i] = handle.inputValue().asDouble();
-            probeRadius[i] = probeWeight[i] * maxDist;
+            probeRadius[i] = probeWeight[i] * effectRadius;
         }
         wr.resize(numTet);ws.resize(numTet);wl.resize(numTet);
         for(int j=0;j<numTet;j++){
@@ -294,7 +268,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 double sum=0.0;
                 std::vector<double> idist(numPrb);
                 for (int i = 0; i<numPrb; i++){
-                    idist[i] = probeWeight[i] / pow(dist[j][i], normExponent);
+                    idist[i] = probeRadius[i] / pow(dist[j][i], normExponent);
                     sum += idist[i];
                 }
                 assert(sum > 0);
@@ -325,31 +299,64 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC){
-            harmonicWeight(data,mIndex,probeWeight,tetMode);
+        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIBOUR){
+            std::vector<int> fList,tList;
+            std::vector< std::vector<double> > ptsWeight(numPrb), w_tet(numPrb);
+            std::vector<Matrix4d> P;
+            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P);
+            std::vector< std::map<int,double> > weightConstraint(numPrb);
+            std::vector<double> weightConstraintValue(0);
+            for(int i=0;i<numPrb;i++){
+                weightConstraint[i].clear();
+            }
+            if( weightMode == WM_HARMONIC_NEIBOUR ){
+                for(int i=0;i<numPrb;i++){
+                    for(int j=0;j<numPts;j++){
+                        if(distPts[i][j]<effectRadius){
+                            weightConstraint[i][j] = 1;
+                            weightConstraintValue.push_back(probeWeight[i]);
+                        }
+                    }
+                }
+            }else if( weightMode == WM_HARMONIC){
+                for(int i=0;i<numPrb;i++){
+                    weightConstraint[i][closestPts[i]] = 1;
+                    weightConstraintValue.push_back(probeWeight[i]);
+                }
+            }
+            isError = harmonicWeight(d, P, tList, fList, weightConstraint, weightConstraintValue, ptsWeight);
             if(isError>0) return MS::kFailure;
+            for(int i=0;i<numPrb;i++){
+                makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight[i], w_tet[i]);
+                for(int j=0;j<numTet; j++){
+                    wr[j][i] = ws[j][i] = wl[j][i] = w_tet[i][j];
+                }
+            }
         }
         // normalise
+        bool normaliseWeight = data.inputValue( aNormaliseWeight ).asBool();
         for(int j=0;j<numTet;j++){
             double sum = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
-            if (sum > 1){
+            if (sum > 1 || normaliseWeight){
                 for (int i = 0; i < numPrb; i++){
                     wr[j][i] /= sum;
                 }
             }
             sum = std::accumulate(ws[j].begin(), ws[j].end(), 0.0);
-            if (sum > 1){
+            if (sum > 1 || normaliseWeight){
                 for (int i = 0; i < numPrb; i++){
                     ws[j][i] /= sum;
                 }
             }
             sum = std::accumulate(wl[j].begin(), wl[j].end(), 0.0);
-            if (sum > 1){
+            if (sum > 1 || normaliseWeight){
                 for (int i = 0; i < numPrb; i++){
                     wl[j][i] /= sum;
                 }
             }
         }
+        // END of weight computation
+        status = data.setClean(aComputeWeight);
     }
 
 
@@ -358,14 +365,14 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
 
     // setting transformation matrix
-	if( ! rotationCosistency || numPrb != prevNs.size()){
-		prevThetas.clear();
-		prevThetas.resize(numPrb, 0.0);
-		prevNs.clear();
-		prevNs.resize(numPrb, Vector3d::Zero());
-	}
-    std::vector<Matrix3d> logR(numPrb),R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
-    std::vector<Matrix4d> logSE(numPrb),SE(numPrb),logAff(numPrb),Aff(numPrb);
+	if( ! rotationCosistency || numPrb != logSE.size() || numPrb != logR.size()){
+		logSE.clear();
+		logSE.resize(numPrb, Matrix4d::Zero().eval());
+		logR.clear();
+		logR.resize(numPrb, Matrix3d::Zero().eval());
+    }
+    std::vector<Matrix3d> R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
+    std::vector<Matrix4d> SE(numPrb),logAff(numPrb),Aff(numPrb);
     std::vector<Vector3d> L(numPrb);
     std::vector<Vector4d> quat(numPrb);
     for(int i=0;i<numPrb;i++)
@@ -375,10 +382,10 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             parametriseGL(Aff[i].block(0,0,3,3), logS[i] ,R[i]);
             L[i] = transPart(Aff[i]);
             if(blendMode == BM_SRL){
-                logR[i]=logSOc(R[i], prevThetas[i], prevNs[i]);
+                logR[i]=logSOc(R[i], logR[i]);
             }else if(blendMode == BM_SES){
                 SE[i]=pad(R[i], L[i]);
-                logSE[i]=logSEc(SE[i], prevThetas[i], prevNs[i]);
+                logSE[i]=logSEc(SE[i], logSE[i]);
             }else if(blendMode == BM_QSL){
                 Quaternion<double> Q(R[i].transpose());
                 quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
@@ -533,75 +540,6 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
 
 
-/// harmonic weighting
-void probeDeformerARAPNode::harmonicWeight(MDataBlock& data, unsigned int mIndex, const std::vector<double>& probeWeight, short tetMode){
-    std::vector<int> fList,tList;
-    std::vector<vertex> vList;
-    std::vector<edge> eList;
-    std::vector<Matrix4d> P;
-    int dim=getMeshData(data, input, inputGeom, mIndex, TM_FACE, pts, tList, fList, eList, vList, P);
-    int numPts=(int)pts.size();
-    int num = (int)tList.size()/4;
-    // LHS
-    std::vector<T> tripletListMat(0);
-    tripletListMat.reserve(num*16+2*numPrb);
-    Matrix4d Hlist;
-	Matrix4d diag=Matrix4d::Identity();
-	diag(3,3)=0;
-	for(int i=0;i<num;i++){
-        P[i]=P[i].inverse().eval();
-		Hlist=P[i].transpose()*diag*P[i];
-		for(int j=0;j<4;j++){
-			for(int k=0;k<4;k++){
-                tripletListMat.push_back(T(tList[4*i+j],tList[4*i+k],Hlist(j,k)));
-			}
-		}
-	}
-    SpMat mat(dim, dim);
-    mat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
-    // set soft constraint
-    tripletListMat.resize(0);
-    std::vector<T> tripletListF(0);
-    for(int i=0;i<numPrb;i++){
-        tripletListMat.push_back(T( closestPts[i], i, 1));
-        tripletListF.push_back(T( i,closestPts[i], 1));
-    }
-    SpMat constraintMat(dim,numPrb);
-    constraintMat.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
-    SpMat F(numPrb,dim);
-    F.setFromTriplets(tripletListF.begin(), tripletListF.end());
-    mat += num * constraintMat * F;
-    // factorise
-    SpSolver weightSolver;
-    weightSolver.compute(mat);
-    if(weightSolver.info() != Success){
-        //        std::string error_mes = solver.lastErrorMessage();
-        MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
-        isError = ERROR_ARAP_PRECOMPUTE;
-    }
-    // RHS
-    tripletListMat.clear();
-    tripletListMat.reserve(numPrb);
-    for(int i=0;i<numPrb;i++){
-        tripletListMat.push_back(T( closestPts[i], i, num*probeWeight[i]));
-    }
-    SpMat G(dim,numPrb);
-    G.setFromTriplets(tripletListMat.begin(), tripletListMat.end());
-    // solve
-    SpMat Sol = weightSolver.solve(G);
-    std::vector<double> w_pt(numPts), w_tet(num);
-    for (int i=0;i<numPrb; i++){
-        for(int j=0;j<numPts; j++){
-            w_pt[j] = Sol.coeff(j,i);
-        }
-        makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, w_pt, w_tet);
-        for(int j=0;j<wr.size(); j++){
-            wr[j][i] = ws[j][i] = wl[j][i] = w_tet[j];
-        }
-    }
-}
-
-
 // create attributes
 MStatus probeDeformerARAPNode::initialize(){
     MFnTypedAttribute tAttr;
@@ -626,7 +564,7 @@ MStatus probeDeformerARAPNode::initialize(){
 
     aMatrix = mAttr.create("probeMatrix", "pm");
     mAttr.setStorable(false);
-//    mAttr.setHidden(true);
+    mAttr.setHidden(true);
     mAttr.setArray(true);
     mAttr.setUsesArrayDataBuilder(true);
     mAttr.setDisconnectBehavior(MFnMatrixAttribute::kDelete);
@@ -634,7 +572,7 @@ MStatus probeDeformerARAPNode::initialize(){
     attributeAffects( aMatrix, outputGeom );
 
     aInitMatrix = mAttr.create("initProbeMatrix", "ipm");
-//    mAttr.setHidden(true);
+    mAttr.setHidden(true);
     mAttr.setArray(true);
     mAttr.setStorable(true);
     mAttr.setUsesArrayDataBuilder(true);
@@ -665,12 +603,19 @@ MStatus probeDeformerARAPNode::initialize(){
     nAttr.setStorable(true);
     addAttribute( aFrechetSum );
     attributeAffects( aFrechetSum, outputGeom );
+    
+    aNormaliseWeight = nAttr.create( "normaliseWeight", "nw", MFnNumericData::kBoolean, true );
+    nAttr.setStorable(true);
+    addAttribute( aNormaliseWeight );
+    attributeAffects( aNormaliseWeight, outputGeom );
+    attributeAffects( aNormaliseWeight, aComputeWeight );
 
     aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
-    eAttr.addField( "harmonic", WM_HARMONIC);
+    eAttr.addField( "harmonic-closest", WM_HARMONIC);
+    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIBOUR);
     eAttr.setStorable(true);
     eAttr.setKeyable(false);
     addAttribute( aWeightMode );
@@ -705,11 +650,12 @@ MStatus probeDeformerARAPNode::initialize(){
     attributeAffects( aWorldMode, outputGeom );
     attributeAffects( aWorldMode, aARAP );
     
-	aMaxDist = nAttr.create("maxDistance", "md", MFnNumericData::kDouble, 8.0);
+	aEffectRadius = nAttr.create("effectRadius", "er", MFnNumericData::kDouble, 8.0);
+    nAttr.setMin( EPSILON );
     nAttr.setStorable(true);
-	addAttribute( aMaxDist );
-	attributeAffects( aMaxDist, outputGeom );
-	attributeAffects( aMaxDist, aComputeWeight );
+	addAttribute( aEffectRadius );
+	attributeAffects( aEffectRadius, outputGeom );
+	attributeAffects( aEffectRadius, aComputeWeight );
 
 	aTransWeight = nAttr.create("translationWeight", "tw", MFnNumericData::kDouble, 0.0001);
     nAttr.setStorable(true);

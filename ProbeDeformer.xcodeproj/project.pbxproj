@@ -21,7 +21,10 @@
 		2AD556A1198EAB49001F79B2 /* tetrise.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD5569D198EAB49001F79B2 /* tetrise.h */; };
 		2AD556AD19925956001F79B2 /* MeshMaya.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556AC19925956001F79B2 /* MeshMaya.h */; };
 		2AD556AE19925956001F79B2 /* MeshMaya.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556AC19925956001F79B2 /* MeshMaya.h */; };
-		2AD556BC1992A6D5001F79B2 /* ARAP.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556BB1992A6D5001F79B2 /* ARAP.h */; };
+		2AD556C61994D1AD001F79B2 /* ARAP.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556C51994D1AD001F79B2 /* ARAP.h */; };
+		2AD556C71994D1AD001F79B2 /* ARAP.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556C51994D1AD001F79B2 /* ARAP.h */; };
+		2AD556CF19978956001F79B2 /* deformerConst.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556CE19978956001F79B2 /* deformerConst.h */; };
+		2AD556D019978956001F79B2 /* deformerConst.h in Headers */ = {isa = PBXBuildFile; fileRef = 2AD556CE19978956001F79B2 /* deformerConst.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -68,7 +71,8 @@
 		2AD5569C198EAB49001F79B2 /* affinelib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = affinelib.h; path = ../affinelib.h; sourceTree = "<group>"; };
 		2AD5569D198EAB49001F79B2 /* tetrise.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = tetrise.h; path = ../tetrise.h; sourceTree = "<group>"; };
 		2AD556AC19925956001F79B2 /* MeshMaya.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = MeshMaya.h; path = ../MeshMaya.h; sourceTree = "<group>"; };
-		2AD556BB1992A6D5001F79B2 /* ARAP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ARAP.h; sourceTree = "<group>"; };
+		2AD556C51994D1AD001F79B2 /* ARAP.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ARAP.h; path = ../ARAP.h; sourceTree = "<group>"; };
+		2AD556CE19978956001F79B2 /* deformerConst.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = deformerConst.h; path = ../deformerConst.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -92,7 +96,8 @@
 		2A48F2C51920F37300AE0DAB = {
 			isa = PBXGroup;
 			children = (
-				2AD556BB1992A6D5001F79B2 /* ARAP.h */,
+				2AD556CE19978956001F79B2 /* deformerConst.h */,
+				2AD556C51994D1AD001F79B2 /* ARAP.h */,
 				2AD556AC19925956001F79B2 /* MeshMaya.h */,
 				2AD5569C198EAB49001F79B2 /* affinelib.h */,
 				2AD5569D198EAB49001F79B2 /* tetrise.h */,
@@ -147,7 +152,9 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				2AD556C61994D1AD001F79B2 /* ARAP.h in Headers */,
 				2A48F2DF1920F46300AE0DAB /* probeDeformer.h in Headers */,
+				2AD556CF19978956001F79B2 /* deformerConst.h in Headers */,
 				2AD556AD19925956001F79B2 /* MeshMaya.h in Headers */,
 				2AD5569E198EAB49001F79B2 /* affinelib.h in Headers */,
 				2AD556A0198EAB49001F79B2 /* tetrise.h in Headers */,
@@ -158,8 +165,9 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				2AD556BC1992A6D5001F79B2 /* ARAP.h in Headers */,
+				2AD556C71994D1AD001F79B2 /* ARAP.h in Headers */,
 				2A48F2F81920F6A000AE0DAB /* probeDeformerARAP.h in Headers */,
+				2AD556D019978956001F79B2 /* deformerConst.h in Headers */,
 				2AD556AE19925956001F79B2 /* MeshMaya.h in Headers */,
 				2AD5569F198EAB49001F79B2 /* affinelib.h in Headers */,
 				2AD556A1198EAB49001F79B2 /* tetrise.h in Headers */,
