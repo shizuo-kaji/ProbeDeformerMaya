@@ -134,14 +134,15 @@ void visualise(MDataBlock& data, MObject& outputGeom, std::vector<double>& ptsCo
     MArrayDataHandle outputArray = data.outputArrayValue(outputGeom , &status );
     MDataHandle hOutput = outputArray.inputValue(&status);
     MFnMesh outMesh(hOutput.data());
-    MColorArray Colour;
+    MColorArray Colours;
     MIntArray Index;
     // set vertex colour
     for(int i=0;i<ptsColour.size();i++){
-        Colour.append( ptsColour[i] ,0,0);
+        MColor colour(MColor::kHSV, 0.0, ptsColour[i], 1.0);
+        Colours.append( colour );
         Index.append(i);
     }
-    outMesh.setVertexColors(Colour, Index);
+    outMesh.setVertexColors(Colours, Index);
 }
 
 // read array of matrix attributes and convert them to Eigen matrices

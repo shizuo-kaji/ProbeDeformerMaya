@@ -266,7 +266,7 @@ namespace AffineLib{
     }
     
     Matrix3d logSymD(const Matrix3d& m)
-    /** log for symmetric matrix by diagonalization (slower than expSym)
+    /** log for symmetric matrix by diagonalization (slower than logSym)
      * @param m symmetric matrix
      * @return log(m)
      */
@@ -295,7 +295,7 @@ namespace AffineLib{
             return E + m;
         }
         if(e == Vector3d::Zero()){
-            // compute eigenvalues
+            // compute eigenvalues if not given
             // eigenvalues are sorted in increasing order.
             SelfAdjointEigenSolver<Matrix3d> eigensolver;
             eigensolver.computeDirect(m, EigenvaluesOnly);
@@ -345,6 +345,7 @@ namespace AffineLib{
         // eigenvalues are sorted in increasing order.
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
         eigensolver.computeDirect(m, EigenvaluesOnly);
+//        eigensolver.compute(m, EigenvaluesOnly);
         Vector3d e;
         e = eigensolver.eigenvalues();
         assert(e[0] > 0 && e[1] > 0 && e[2] > 0);
@@ -479,8 +480,8 @@ namespace AffineLib{
         return w;
     }
     
-    void polar(const Matrix3d& m, Matrix3d& U, Vector3d& s, Matrix3d& R)
-    /** Polar decomposition m = U diag(s) U^T R
+    void polarDiag(const Matrix3d& m, Matrix3d& U, Vector3d& s, Matrix3d& R)
+    /** Polar decomposition m = U diag(s) U^T R by diagonalisation
      * @param m matrix to be decomposed
      * @param U diagonaliser of symmetric part
      * @param s singular values
@@ -491,6 +492,7 @@ namespace AffineLib{
         Matrix3d A= m*m.transpose();
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
         eigensolver.computeDirect(A);
+//        eigensolver.compute(A);
         s = eigensolver.eigenvalues();
         U = Matrix3d(eigensolver.eigenvectors());
         s = s.array().sqrt();
@@ -587,7 +589,7 @@ namespace AffineLib{
          * @param S shear part
          * @param R rotation part
          */
-        Vector3d lambda=Vector3d::Zero();
+        Vector3d lambda=Vector3d::Zero().eval();
         Matrix3d logS = logSym(m*m.transpose(), lambda)/2.0;
         S = expSym(logS, lambda/2.0);
         R = expSym(-logS, -lambda/2.0) * m;
@@ -606,8 +608,8 @@ namespace AffineLib{
         do {
             assert(Curr.determinant() != 0.0);
             MatrixXd Ad = Curr.inverse().transpose();
-            double nad = Ad.lpNorm<1>() * Ad.lpNorm<Infinity>();
-            double na = Curr.lpNorm<1>() * Curr.lpNorm<Infinity>();
+            double nad = Ad.array().abs().colwise().sum().maxCoeff() * Ad.array().abs().rowwise().sum().maxCoeff();
+            double na = Curr.array().abs().colwise().sum().maxCoeff() * Curr.array().abs().rowwise().sum().maxCoeff();
             double gamma = sqrt(sqrt(nad / na));
             //        std::cout << gamma << std::endl;
             Prev = Curr;
@@ -618,6 +620,7 @@ namespace AffineLib{
         S = A * Curr.transpose();
         return iter;
     }
+    
 
     void parametriseGL(const Matrix3d& m, Matrix3d& logS, Matrix3d& R)
     /** Parametrisation map for GL(3)

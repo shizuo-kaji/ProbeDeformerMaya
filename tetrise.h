@@ -274,8 +274,9 @@ namespace Tetrise{
                 Vector3d p2=pts[tetList[4*i+2]];
                 u=p1-p0;
                 v=p2-p0;
-                q=u.cross(v).normalized();
-                c = q+p0;
+                q=u.cross(v);
+                c = q.normalized()+(p0+p1+p2)/3;
+//                c = q/sqrt(q.norm())+(p0+p1+p2)/3;
                 P[i] = mat(p0,p1,p2,c);
             }
         }else if(tetMode == TM_EDGE){
@@ -324,7 +325,19 @@ namespace Tetrise{
         Vector3d u, v, q, c;
         int numTet = (int)tetList.size()/4;
         P.clear();
-        if( tetMode == TM_FACE || tetMode == TM_EDGE){
+        if( tetMode == TM_FACE ){
+            P.resize(numTet);
+            for(int i=0;i<numTet;i++){
+                Vector3d p0=pts[tetList[4*i]];
+                Vector3d p1=pts[tetList[4*i+1]];
+                Vector3d p2=pts[tetList[4*i+2]];
+                u=p1-p0;
+                v=p2-p0;
+                q=u.cross(v).normalized();
+                c = q+(p0+p1+p2)/3;
+                P[i] = mat(p0,p1,p2,c);
+            }
+        }else if(tetMode == TM_EDGE){
             makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
         }else if(tetMode == TM_VERTEX){
             P.reserve(numTet);

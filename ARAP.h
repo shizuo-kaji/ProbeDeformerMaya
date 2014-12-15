@@ -17,8 +17,8 @@ using namespace Eigen;
 
 typedef SparseMatrix<double> SpMat;
 typedef SimplicialLDLT<SpMat> SpSolver;
-//    SimplicialLLT<SpMat>;
-//    SparseLU<SpMat>;
+//typedef SimplicialLLT<SpMat> SpSolver;
+//matypedef SparseLU<SpMat> SpSolver;
 typedef Triplet<double> T;
 
 #define ERROR_ARAP_PRECOMPUTE 1
@@ -62,7 +62,7 @@ int ARAPprecompute(const std::vector<Matrix4d>& tetMatrixInverse, const std::vec
     mat += numTet * constraintMat * F;
     solver.compute(mat);
     if(solver.info() != Success){
-        //        std::string error_mes = solver.lastErrorMessage();
+        //std::string error_mes = solver.lastErrorMessage();
         MGlobal::displayInfo("Cleanup the mesh first: Mesh menu => Cleanup => Remove zero edges, faces");
         return ERROR_ARAP_PRECOMPUTE;
     }

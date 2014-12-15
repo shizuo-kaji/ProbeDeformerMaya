@@ -83,9 +83,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     MArrayDataHandle hMatrixArray = data.inputArrayValue(aMatrix);
     MArrayDataHandle hInitMatrixArray = data.inputArrayValue(aInitMatrix);
     // avoid unnecessary computation
-    if(isError>0){
-        return MS::kFailure;
-    }else if(hMatrixArray.elementCount() > hInitMatrixArray.elementCount() || hMatrixArray.elementCount() == 0 || blendMode == BM_OFF){
+    if(hMatrixArray.elementCount() > hInitMatrixArray.elementCount() || hMatrixArray.elementCount() == 0 || blendMode == BM_OFF){
         return MS::kSuccess;
     }else if(hMatrixArray.elementCount() < hInitMatrixArray.elementCount()){
         std::set<int> indices;
@@ -236,11 +234,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }
         // prepare ARAP solver
         isError = ARAPprecompute(PI, tetList, tetWeight, constraint, transWeight, dim, constraintMat, solver);
-        if(isError>0) return MS::kFailure;
         // END of precomputation
         status = data.setClean(aARAP);
     }
-    
+    if(isError>0){
+        return MS::kFailure;
+    }
     
     // probe weight computation
     short weightMode = data.inputValue( aWeightMode ).asShort();
