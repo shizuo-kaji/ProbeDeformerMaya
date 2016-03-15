@@ -142,9 +142,7 @@
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "225"
-            endingLineNumber = "225"
-            landmarkName = "makeTetWeightList(short tetMode, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;int&gt;&amp; faceList, const std::vector&lt;edge&gt;&amp; edgeList, const std::vector&lt;vertex&gt;&amp; vertexList, const std::vector&lt;double&gt;&amp; ptsWeight, std::vector&lt;double&gt;&amp; tetWeight )"
-            landmarkType = "7">
+            endingLineNumber = "225">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -296,6 +294,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429193787.256355"
                   startingColumnNumber = "9223372036854775807"
@@ -310,6 +309,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429193787.556802"
                   startingColumnNumber = "9223372036854775807"
@@ -390,6 +390,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429389852.693909"
                   startingColumnNumber = "9223372036854775807"
@@ -404,6 +405,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429389852.694246"
                   startingColumnNumber = "9223372036854775807"
@@ -452,6 +454,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "ARAPprecompute(std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, double, int, Eigen::SparseMatrix&lt;double, 0, int&gt;&amp;, Eigen::SimplicialLDLT&lt;Eigen::SparseMatrix&lt;double, 0, int&gt;, 1&gt;&amp;)"
                   moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429364800.437233"
                   startingColumnNumber = "9223372036854775807"
@@ -466,6 +469,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "ARAPprecompute(std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, double, int, Eigen::SparseMatrix&lt;double, 0, int&gt;&amp;, Eigen::SimplicialLDLT&lt;Eigen::SparseMatrix&lt;double, 0, int&gt;, 1&gt;&amp;)"
                   moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
                   timestampString = "429364813.16051"
                   startingColumnNumber = "9223372036854775807"
@@ -498,6 +502,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "getMeshData(MDataBlock&amp;, MObject&amp;, MObject&amp;, unsigned int, short, std::__1::vector&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;edge, std::__1::allocator&lt;edge&gt; &gt;&amp;, std::__1::vector&lt;vertex, std::__1::allocator&lt;vertex&gt; &gt;&amp;, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../MeshMaya.h"
                   timestampString = "429389852.69486"
                   startingColumnNumber = "9223372036854775807"
@@ -512,6 +517,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "getMeshData(MDataBlock&amp;, MObject&amp;, MObject&amp;, unsigned int, short, std::__1::vector&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;edge, std::__1::allocator&lt;edge&gt; &gt;&amp;, std::__1::vector&lt;vertex, std::__1::allocator&lt;vertex&gt; &gt;&amp;, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt;&amp;)"
                   moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../MeshMaya.h"
                   timestampString = "429389852.695019"
                   startingColumnNumber = "9223372036854775807"
@@ -535,7 +541,7 @@
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "211"
             endingLineNumber = "211"
-            landmarkName = "logSEc(const Matrix4d&amp; mm, const Matrix4d&amp; P)"
+            landmarkName = "expSE(const Matrix4d&amp; mm)"
             landmarkType = "7">
             <Locations>
                <Location
@@ -544,6 +550,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "AffineLib::expSE(Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; const&amp;)"
                   moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../affinelib.h"
                   timestampString = "429389852.695551"
                   startingColumnNumber = "9223372036854775807"
@@ -558,6 +565,7 @@
                   continueAfterRunningActions = "No"
                   symbolName = "AffineLib::logSEc(Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; const&amp;, Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; const&amp;)"
                   moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
                   urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../affinelib.h"
                   timestampString = "429389852.695705"
                   startingColumnNumber = "9223372036854775807"

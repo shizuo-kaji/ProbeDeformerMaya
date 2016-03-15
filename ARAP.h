@@ -18,7 +18,7 @@ using namespace Eigen;
 typedef SparseMatrix<double> SpMat;
 typedef SimplicialLDLT<SpMat> SpSolver;
 //typedef SimplicialLLT<SpMat> SpSolver;
-//matypedef SparseLU<SpMat> SpSolver;
+//typedef SparseLU<SpMat> SpSolver;
 typedef Triplet<double> T;
 
 #define ERROR_ARAP_PRECOMPUTE 1

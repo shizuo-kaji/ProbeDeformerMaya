@@ -219,7 +219,7 @@
 		2A48F2C61920F37300AE0DAB /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0510;
+				LastUpgradeCheck = 0630;
 				ORGANIZATIONNAME = "mcg-q";
 			};
 			buildConfigurationList = 2A48F2C91920F37300AE0DAB /* Build configuration list for PBXProject "ProbeDeformer" */;
@@ -298,7 +298,7 @@
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = /usr/local/include/eigen3/;
@@ -336,7 +336,7 @@
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 				);
-				MACOSX_DEPLOYMENT_TARGET = 10.9;
+				MACOSX_DEPLOYMENT_TARGET = 10.11;
 				SDKROOT = macosx;
 				USER_HEADER_SEARCH_PATHS = /usr/local/include/eigen3/;
 			};
@@ -346,16 +346,17 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
 				EXECUTABLE_EXTENSION = bundle;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREFIX_HEADER = "$(MAYA_LOCATION)/devkit/include/maya/OpenMayaMac.h";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					MAC_PLUGIN,
 					_BOOL,
 					REQUIRE_IOSTREAM,
+					OSMac_,
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -390,15 +391,16 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
 				EXECUTABLE_EXTENSION = bundle;
-				GCC_PREFIX_HEADER = "$(MAYA_LOCATION)/devkit/include/maya/OpenMayaMac.h";
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					MAC_PLUGIN,
 					_BOOL,
 					REQUIRE_IOSTREAM,
+					OSMac_,
 				);
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
@@ -433,18 +435,13 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = NO;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
 				EXECUTABLE_EXTENSION = bundle;
 				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREFIX_HEADER = "$(MAYA_LOCATION)/devkit/include/maya/OpenMayaMac.h";
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					MAC_PLUGIN,
-					_BOOL,
-					REQUIRE_IOSTREAM,
-					DEBUG,
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = OSMac_;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
@@ -477,16 +474,12 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = YES;
+				COMBINE_HIDPI_IMAGES = YES;
 				COPY_PHASE_STRIP = YES;
 				DYLIB_COMPATIBILITY_VERSION = "";
 				DYLIB_CURRENT_VERSION = "";
 				EXECUTABLE_EXTENSION = bundle;
-				GCC_PREFIX_HEADER = "$(MAYA_LOCATION)/devkit/include/maya/OpenMayaMac.h";
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					MAC_PLUGIN,
-					_BOOL,
-					REQUIRE_IOSTREAM,
-				);
+				GCC_PREPROCESSOR_DEFINITIONS = OSMac_;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;

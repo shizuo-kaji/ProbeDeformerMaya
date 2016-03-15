@@ -485,8 +485,10 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             #pragma omp parallel for
             for(int i=0;i<numTet;i++){
                 polarHigham((PI[i]*Q[i]).block(0,0,3,3), newS, newR);
-                tetEnergy[i] = (newS-Matrix3d::Identity()).squaredNorm();
+                tetEnergy[i] = (newS-blendedS[i]).squaredNorm();
                 A[i].block(0,0,3,3) = blendedS[i]*newR;
+//                polarHigham((A[i].transpose()*PI[i]*Q[i]).block(0,0,3,3), newS, newR);
+//                A[i].block(0,0,3,3) *= newR;
             }
         }
     }
@@ -609,7 +611,7 @@ MStatus probeDeformerARAPNode::initialize(){
     attributeAffects( aNormaliseWeight, outputGeom );
     attributeAffects( aNormaliseWeight, aComputeWeight );
 
-    aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
+    aWeightMode = eAttr.create( "weightMode", "wtm", WM_HARMONIC );
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
