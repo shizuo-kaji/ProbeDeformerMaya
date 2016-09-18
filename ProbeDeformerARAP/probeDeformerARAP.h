@@ -80,4 +80,15 @@ private:
     std::vector< std::vector<double> > distPts; // distPts[i][j] is the distance from i-th probe to j-th pt; DIFFERENT ORDER FROM ABOVE
     SpSolver solver;   // ARAP solver
     SpMat constraintMat;                // ARAP constraint matrix
+    std::vector<Matrix4d> SE, logAff,Aff;
+    std::vector<Matrix3d> R,logS,S,logGL;
+    std::vector<Vector3d> L;
+    std::vector<Vector4d> quat;
+    std::vector<Matrix4d> A,blendedSE;
+    std::vector<Matrix3d> blendedR, blendedS;
+    std::vector<Vector4d> blendedL;
+    std::vector<Vector3d> new_pts;
+    std::vector<Matrix4d> Q;  //temporary
+    std::vector<double> tetEnergy;
+    
 };

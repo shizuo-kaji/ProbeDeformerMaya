@@ -109,16 +109,17 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         Aff[i]=initMatrix[i].inverse()*matrix[i];
         probeCenter[i] << transPart(initMatrix[i]);
     }
-    if(blendMode == BM_SRL || blendMode == BM_SES || blendMode == BM_QSL){
+    if(blendMode == BM_SRL || blendMode == BM_SSE || blendMode == BM_SQL){
         for(int i=0;i<numPrb;i++){
             parametriseGL(Aff[i].block(0,0,3,3), logS[i] ,R[i]);
             L[i] = transPart(Aff[i]);
             if(blendMode == BM_SRL){
                 logR[i]=logSOc(R[i], logR[i]);
-            }else if(blendMode == BM_SES){
+                S[i]=expSym(logS[i]);
+            }else if(blendMode == BM_SSE){
                 SE[i]=pad(R[i], L[i]);
                 logSE[i]=logSEc(SE[i], logSE[i]);
-            }else if(blendMode == BM_QSL){
+            }else if(blendMode == BM_SQL){
                 Quaternion<double> Q(R[i].transpose());
                 quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
                 S[i]=expSym(logS[i]);
@@ -277,22 +278,20 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         // blend matrix
         Matrix4d mat;
         if(blendMode == BM_SRL){
-            Matrix3d RR,SS=expSym(blendMat(logS, wrr));
+            Matrix3d RR,SS;
             Vector3d l=blendMat(L, wll);
             if(frechetSum){
                 RR = frechetSO(R, wrr);
+                SS = frechetSym(S, wss);
             }else{
                 RR = expSO(blendMat(logR, wrr));
+                SS = expSym(blendMat(logS, wss));
             }
             mat = pad(SS*RR, l);
-        }else if(blendMode == BM_SES){
+        }else if(blendMode == BM_SSE){
             Matrix4d RR;
             Matrix3d SS=expSym(blendMat(logS, wss));
-            if(frechetSum){
-                RR = frechetSE(SE, wrr);
-            }else{
-                RR = expSE(blendMat(logSE, wrr));
-            }
+            RR = expSE(blendMat(logSE, wrr));
             mat = pad(SS,Vector3d::Zero()) * RR;
         }else if(blendMode == BM_LOG3){
             Matrix3d RR=blendMat(logGL, wrr).exp();
@@ -300,7 +299,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             mat = pad(RR, l);
         }else if(blendMode == BM_LOG4){
             mat=blendMat(logAff, wrr).exp();
-        }else if(blendMode == BM_QSL){
+        }else if(blendMode == BM_SQL){
             Vector4d q=blendQuat(quat,wrr);
             Vector3d l=blendMat(L, wll);
             Matrix3d SS=blendMatLin(S,wss);
@@ -375,10 +374,10 @@ MStatus probeDeformerNode::initialize()
 
     aBlendMode = eAttr.create( "blendMode", "bm", BM_SRL );
     eAttr.addField( "expSO+expSym", BM_SRL );
-    eAttr.addField( "expSE+expSym", BM_SES );
+    eAttr.addField( "expSE+expSym", BM_SSE );
     eAttr.addField( "logmatrix3", BM_LOG3 );
     eAttr.addField( "logmatrix4", BM_LOG4 );
-    eAttr.addField( "quat+linear", BM_QSL );
+    eAttr.addField( "quat+linear", BM_SQL );
     eAttr.addField( "linear", BM_AFF );
     eAttr.addField( "off", BM_OFF );
     eAttr.setStorable(true);

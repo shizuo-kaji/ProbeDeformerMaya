@@ -1,8 +1,8 @@
 //
 //  StdAfx.cpp
-//  ProbeDeformer
+//  NWayBlenderMaya
 //
-//  Created by 鍛冶 静雄 on 2014/05/12.
+//  Created by 鍛冶 静雄 on 2014/05/13.
 //    Copyright (c) 2014年 mcg-q. All rights reserved.
 //
 

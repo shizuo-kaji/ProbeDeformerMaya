@@ -8,12 +8,13 @@
 #define ProbeDeformer_deformerConst_h
 
 // parametrisation mode
-#define BM_SRL 0
-#define BM_SES 1
-#define BM_LOG3 3
-#define BM_LOG4 4
-#define BM_QSL 5
-#define BM_AFF 10
+#define BM_SRL 0    // sym^+ so(3) R^3
+#define BM_SSE 1    // sym^+ se(3)
+#define BM_LOG3 3   // gl(3) R^3
+#define BM_LOG4 4   // aff(3)
+#define BM_SQL 5    // Sym quat R^3
+#define BM_SlRL 6    // Sym so(3) R^3
+#define BM_AFF 10   // Aff(3)
 #define BM_OFF -1
 
 // weight mode
@@ -24,7 +25,7 @@
 #define WM_HARMONIC_NEIBOUR 4
 
 // constraint mode
-#define CONSTRAINT_NEIBOUR 0
+#define CONSTRAINT_NEIGHBOUR 0
 #define CONSTRAINT_CLOSEST 1
 
 // stiffness mode

@@ -6,8 +6,6 @@
  * @version 0.15
  * @date  3/Jan/2014
  * @author Shizuo KAJI
- *
- * @section Shape is deformed according to the blended affine transformation and ARAP energy.
  */
 
 
@@ -208,7 +206,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 }
             }
         }
-        if( constraintMode == CONSTRAINT_NEIBOUR ){
+        if( constraintMode == CONSTRAINT_NEIGHBOUR ){
             std::vector<double> probeConstraintRadius(numPrb);
             MArrayDataHandle handle = data.inputArrayValue(aProbeConstraintRadius);
             if(handle.elementCount() != numPrb){
@@ -370,10 +368,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 		logR.clear();
 		logR.resize(numPrb, Matrix3d::Zero().eval());
     }
-    std::vector<Matrix3d> R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
-    std::vector<Matrix4d> SE(numPrb),logAff(numPrb),Aff(numPrb);
-    std::vector<Vector3d> L(numPrb);
-    std::vector<Vector4d> quat(numPrb);
+    
+    SE.resize(numPrb);
+    logAff.resize(numPrb); Aff.resize(numPrb);
+    R.resize(numPrb); logS.resize(numPrb); S.resize(numPrb); logGL.resize(numPrb);
+    L.resize(numPrb); quat.resize(numPrb); A.resize(numTet); blendedSE.resize(numTet);
+    blendedR.resize(numTet); blendedS.resize(numTet); blendedL.resize(numTet);
     for(int i=0;i<numPrb;i++)
         Aff[i]=initMatrix[i].inverse()*matrix[i];
     if(blendMode == BM_SRL || blendMode == BM_SES || blendMode == BM_QSL){
@@ -382,6 +382,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             L[i] = transPart(Aff[i]);
             if(blendMode == BM_SRL){
                 logR[i]=logSOc(R[i], logR[i]);
+                S[i]=expSym(logS[i]);
             }else if(blendMode == BM_SES){
                 SE[i]=pad(R[i], L[i]);
                 logSE[i]=logSEc(SE[i], logSE[i]);
@@ -404,22 +405,18 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
 
 // prepare transform matrix for each simplex
-    std::vector<Matrix4d> A(numTet),blendedSE(numTet);
-    std::vector<Matrix3d> blendedR(numTet), blendedS(numTet);
-    std::vector<Vector4d> blendedL(numTet);
-
 #pragma omp parallel for
 	for (int j = 0; j < numTet; j++){
 		// blend matrix
 		if (blendMode == BM_SRL){
-			blendedS[j] = expSym(blendMat(logS, ws[j]));
+			blendedS[j] = frechetSum ? frechetSym(S, ws[j]) : expSym(blendMat(logS, ws[j]));
 			Vector3d l = blendMat(L, wl[j]);
             blendedR[j] = frechetSum ? frechetSO(R, wr[j]) : expSO(blendMat(logR, wr[j]));
 			A[j] = pad(blendedS[j]*blendedR[j], l);
 		}
 		else if (blendMode == BM_SES){
 			blendedS[j] = expSym(blendMat(logS, ws[j]));
-            blendedSE[j] = frechetSum ? frechetSE(SE, wr[j]) : expSE(blendMat(logSE, wr[j]));
+            blendedSE[j] = expSE(blendMat(logSE, wr[j]));
 			A[j] = pad(blendedS[j], Vector3d::Zero()) * blendedSE[j];
 		}
 		else if (blendMode == BM_LOG3){
@@ -446,10 +443,11 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 
     // compute target vertices position
     MatrixXd Sol;
-    std::vector<double> tetEnergy(numTet);
+    tetEnergy.resize(numTet);
     
     // set constraint
     std::vector<Vector3d> constraintVector(0);
+    constraintVector.reserve(numPrb * numPts);
     RowVector4d cv;
     Vector3d cvv;
     for(int i=0;i<numPrb;i++){
@@ -466,7 +464,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         // solve ARAP
         ARAPSolve(A, PI, tetList, tetWeight, constraintVector, transWeight, dim, constraintMat, solver, Sol);
         // set new vertices position
-        std::vector<Vector3d> new_pts(numPts);
+        new_pts.resize(numPts);
         for(int i=0;i<numPts;i++){
             new_pts[i][0]=Sol(i,0);
             new_pts[i][1]=Sol(i,1);
@@ -474,7 +472,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }
         // if iteration continues
         if(k+1<numIter || visualisationMode == VM_ENERGY){
-            std::vector<Matrix4d> Q(numTet);
+            Q.resize(numTet);
             makeTetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q);
             Matrix3d S,R,newS,newR;
             if(blendMode == BM_AFF || blendMode == BM_LOG4 || blendMode == BM_LOG3){
@@ -485,8 +483,10 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             #pragma omp parallel for
             for(int i=0;i<numTet;i++){
                 polarHigham((PI[i]*Q[i]).block(0,0,3,3), newS, newR);
-                tetEnergy[i] = (newS-Matrix3d::Identity()).squaredNorm();
+                tetEnergy[i] = (newS-blendedS[i]).squaredNorm();
                 A[i].block(0,0,3,3) = blendedS[i]*newR;
+//                polarHigham((A[i].transpose()*PI[i]*Q[i]).block(0,0,3,3), newS, newR);
+//                A[i].block(0,0,3,3) *= newR;
             }
         }
     }
@@ -609,7 +609,7 @@ MStatus probeDeformerARAPNode::initialize(){
     attributeAffects( aNormaliseWeight, outputGeom );
     attributeAffects( aNormaliseWeight, aComputeWeight );
 
-    aWeightMode = eAttr.create( "weightMode", "wtm", WM_INV_DISTANCE );
+    aWeightMode = eAttr.create( "weightMode", "wtm", WM_HARMONIC );
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
@@ -622,7 +622,7 @@ MStatus probeDeformerARAPNode::initialize(){
     attributeAffects( aWeightMode, aComputeWeight );
     
     aConstraintMode = eAttr.create( "constraintMode", "ctm", CONSTRAINT_CLOSEST );
-    eAttr.addField( "neighbour",  CONSTRAINT_NEIBOUR);
+    eAttr.addField( "neighbour",  CONSTRAINT_NEIGHBOUR);
     eAttr.addField( "closestPt", CONSTRAINT_CLOSEST );
     eAttr.setStorable(true);
     eAttr.setKeyable(false);

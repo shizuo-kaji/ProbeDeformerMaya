@@ -1,13 +1,17 @@
 /**
  * @file affinelib.h
  * @brief Library for 3D affine transformation
- * @section LICENSE The MIT License
- * @section requirements:  Eigen library,   (optional) MKL
- * @section CAUTION: the convention here is different from the one in the paper;
+ * @brief An implementation of the paper "A concise parametrisation of affine transformation" by S. Kaji and H. Ochiai
+ * @section LICENSE
+ *                   the MIT License
+ * @section Requirements
+ *                   Eigen library,   (optional) MKL
+ * @section CAUTION
+ *           The convention used here is different from the one in the paper;
  *           we assume that matrices act on row vectors by right multiplication.
- *           ( that is, everything is transposed compared to the paper )
- * @version 0.20
- * @date  Nov. 2013
+ *           ( that is, everything is transposed compared to the paper. )
+ * @version 0.30
+ * @date  Jun. 2016
  * @author Shizuo KAJI
  */
 
@@ -17,8 +21,6 @@
 // uncomment if you use MKL
 // #define  EIGEN_USE_MKL_ALL
 
-#include <Eigen/Core>
-#include <Eigen/LU>
 #include <Eigen/Dense>
 #include <Eigen/SVD>
 #include <Eigen/StdVector>
@@ -30,22 +32,27 @@
 #include <vector>
 
 
-/// threshold for being zero
-#define EPSILON 10e-6
+/// threshold for small values to be regarded zero
+#define EPSILON 10e-15
+// for assert()
+#define TOLERANCE 10e-5
+
 /// 3x3 identity matrix
-#define E Matrix3d::Identity()
-/// print Eigen object
+#define Id3 Matrix3d::Identity()
+/// macro to print an Eigen object
 #define PRINT_MAT(X) std::cout << #X << ":\n" << X << std::endl << std::endl
 
+//
 using namespace Eigen;
 using namespace std;
 /// For vecterization of Eigen objects
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Matrix4d);
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION(Vector4d);
 
+// main body
 namespace AffineLib{
     Matrix4d pad(const Matrix3d& m, const Vector3d& l, const double br=1.0)
-    /** compose affine matrix from linear matrix and translation vector
+    /** compose an affine matrix from linear matrix and translation vector
      * @param m 3x3-matrix
      * @param l 3-dim translation vector
      * @param br value of bottom right corner; set to 0.0 for log matrix
@@ -61,7 +68,7 @@ namespace AffineLib{
     }
     
     RowVector4d pad(const Vector3d& v)
-    /** return 4-vector by concatenating 1 at the 4th coordinate
+    /** compose a 4-vector by concatenating 1 at the 4th coordinate
      * @param v 3-vector
      * @return 4-vector
      */
@@ -70,50 +77,20 @@ namespace AffineLib{
     }
 
     Vector3d transPart(const Matrix4d& m){
-        /** extract translation vector from affine matrix
+        /** extract the translation vector from an affine matrix
          * @param m affine matrix
          * @return 3D translation vector
          */
         return Vector3d(m(3,0),m(3,1),m(3,2));
     }
     
-    Matrix3d logSO_rodrigues(const Matrix3d& m)
-    /** Log for rotational matrix using Rodrigues' formula
-     * @param m rotational matrix
-     * @return primary value of log(m)
-     */
-    {
-        assert( ((m * m.transpose()) - E).squaredNorm() < EPSILON );
-        double tr=(m(0,0)+m(1,1)+m(2,2)-1.0)/2.0;
-        double theta;
-        Matrix3d ans=Matrix3d::Zero();
-        if(tr>=1.0){
-            return ans;
-        }else if(tr<=-1.0){
-            ans(0,1)=M_PI;
-            ans(1,0)=-M_PI;
-            return ans;
-        }else{
-            theta=acos(tr);
-        }
-        if(theta<EPSILON){
-            return ans;
-        }else if(M_PI-theta<EPSILON){
-            ans(0,1)=M_PI;
-            ans(1,0)=-M_PI;
-            return ans;
-        }else{
-            ans=0.5*theta/sin(theta) * (m-m.transpose());
-            return ans;
-        }
-    }
-    
     Matrix3d logSO(const Matrix3d& m)
-    /** Log for rotational matrix using Axis-Angle
+    /** Log for a rotational matrix using Axis-Angle
      * @param m rotational matrix
      * @return primary value of log(m)
      */
     {
+        assert( (m*m.transpose()-Id3).squaredNorm() < TOLERANCE );
         AngleAxisd X(m);
         Matrix3d A;
         A << 0,     -X.axis()[2], X.axis()[1],
@@ -123,20 +100,21 @@ namespace AffineLib{
     }
 
     Matrix3d logSOc(const Matrix3d& m, const Matrix3d& P)
-    /** "Continuous" log for rotational matrix
+    /** "Continuous" log for a rotational matrix
      * @param m rotational matrix
      * @param P anti-symmetric matrix
-     * @return branch of log(m) closest to P
+     * @return the branch of log(m) closest to P
      */
     {
+        assert( (m*m.transpose()-Id3).squaredNorm() < TOLERANCE );
         AngleAxisd X(m);
         Matrix3d A;
         double theta=X.angle();
         Vector3d n=X.axis();
         Vector3d prevN(-P(1,2),P(0,2),-P(0,1));
         double prevTheta=prevN.norm();
-        if(abs(theta)<EPSILON && abs(prevTheta)>EPSILON){
-            n=prevN/prevTheta;
+        if(abs(sin(theta))==0.0){
+            n=prevN;
         }
         A << 0,     -n[2], n[1],
         n[2], 0,        -n[0],
@@ -154,30 +132,63 @@ namespace AffineLib{
         return(theta*A);
     }
     
+    Matrix3d expTaylor(const Matrix3d& m, const int deg = 50)
+        /** exp by Taylor expansion
+         * @param m 3x3 matrix
+         * @param deg degree of Taylor expansion
+         * @return exp(m)
+         */
+    {
+        Matrix3d A = Id3;
+        Matrix3d mPow = Id3;
+        for(int i=1;i<deg+1;i++){
+            mPow = m*mPow/i;
+            A += mPow;
+        }
+        return A;
+    }
+
+    Matrix3d logTaylor(const Matrix3d& m, const int deg=50)
+    /** log by Taylor expansion
+     * @param m 3x3 matrix
+     * @param deg degree of Taylor expansion
+     * @return log(m)
+     */
+    {
+        Matrix3d A = Matrix3d::Zero();
+        Matrix3d mPow = -Id3;
+        for(int i=1;i<deg+1;i++){
+            mPow = (Id3-m)*mPow;
+            A += mPow/i;
+        }
+        return A;
+    }
+
+    
     Matrix3d expSO(const Matrix3d& m)
-    /** exp for rotational matrix using Rodrigues' formula
-     * @param m rotational matrix
+    /** exp for an anti-symmetric matrix using Rodrigues' formula
+     * @param m anti-symmetric matrix
      * @return exp(m)
      */
     {
-//        assert( ((m + m.transpose())).squaredNorm() < EPSILON );
+        assert( ((m + m.transpose())).squaredNorm() < TOLERANCE );
         double norm2=m(0,1)*m(0,1) + m(0,2)*m(0,2) + m(1,2)*m(1,2);
         if(norm2<EPSILON){
-            return E + m + m*m/2.0;
+            return Id3 + m + m*m/2.0;
         }else{
             double norm = sqrt(norm2);
-            return E + sin(norm)/norm * m + (1.0-cos(norm))/norm2 * m*m;
+            return Id3 + sin(norm)/norm * m + (1.0-cos(norm))/norm2 * m*m;
         }
     }
     
     Matrix4d expSE(const Matrix4d& mm)
-    /** exp for rigid transformation (screw) matrix
-     * @param mm rigid transformation matrix
+    /** exp for the log of a rigid transformation (screw) matrix
+     * @param mm the log of a rigid transformation matrix
      * @return exp(mm)
      */
     {
         Matrix3d m = mm.block(0,0,3,3);
-//        assert( ((m + m.transpose())).squaredNorm() < EPSILON );
+        assert( ((m + m.transpose())).squaredNorm() < TOLERANCE );
         Vector3d v;
         v << mm(3,0), mm(3,1), mm(3,2);
         double norm2=m(0,1)*m(0,1) + m(0,2)*m(0,2) + m(1,2)*m(1,2);
@@ -186,21 +197,21 @@ namespace AffineLib{
             return (Matrix4d::Identity() + mm + mm*mm/2.0);
         }else{
             double norm = sqrt(norm2);
-            ans = E + sin(norm)/norm * m + (1.0-cos(norm))/norm2 * m*m;
-            A = E + (1.0-cos(norm))/norm2 * m + (norm-sin(norm))/(norm*norm2) * m*m ;
+            ans = Id3 + sin(norm)/norm * m + (1.0-cos(norm))/norm2 * m*m;
+            A = Id3 + (1.0-cos(norm))/norm2 * m + (norm-sin(norm))/(norm*norm2) * m*m ;
             return pad(ans, A.transpose()*v);
         }
     }
     
-    Matrix4d logSEc(const Matrix4d& mm, const Matrix4d& P)
-    /** "Continuous" log for rigid transformation (screw) matrix
+    Matrix4d logSEc(const Matrix4d& mm, const Matrix4d& P = Matrix4d::Zero())
+    /** "Continuous" log for a rigid transformation (screw) matrix
      * @param mm rigid transformation matrix
      * @param P log matrix
-     * @return branch of log(m) closest to P
+     * @return branch of log(mm) closest to P
      */
     {
         Matrix3d m = mm.block(0,0,3,3);
-        assert( ((m * m.transpose()) - E).squaredNorm() < EPSILON );
+        assert( ((m * m.transpose()) - Id3).squaredNorm() < TOLERANCE );
         Vector3d v = transPart(mm);
         Matrix3d X = logSOc(m, P.block(0,0,3,3));
         double theta=sqrt(X(1,2)*X(1,2) + X(0,2)*X(0,2) + X(0,1)*X(0,1));
@@ -214,10 +225,10 @@ namespace AffineLib{
                 l = theta / prevTheta * transPart(P);
             }
         }else if(abs(1+cos(theta))<EPSILON){
-            A = E - 0.5 * X + 1.0/(theta*theta) * X*X;
+            A = Id3 - 0.5 * X + 1.0/(theta*theta) * X*X;
             l = A.transpose()*v;
         }else{
-            A = E - 0.5 * X + (1.0/(theta*theta) - 0.5*(1.0+cos(theta))/(sin(theta)*theta)) * X * X;
+            A = Id3 - 0.5 * X + (1.0/(theta*theta) - 0.5*(1.0+cos(theta))/(sin(theta)*theta)) * X * X;
             l = A.transpose()*v;
         }
         return(pad(X, l,0.0));
@@ -225,7 +236,7 @@ namespace AffineLib{
     
     
     Matrix3d logDiag(const Matrix3d& U, const Vector3d& s)
-    /** log for diagonalised matrix  m = U diag(s) U^t with positive eigenvalues
+    /** log for a diagonalised matrix  m = U diag(s) U^t with positive eigenvalues
      * @param U rotational diagonalising matrix
      * @param s eigenvalues (must be all positive)
      * @return log(m)
@@ -237,7 +248,7 @@ namespace AffineLib{
     }
     
     Matrix3d expDiag(const Matrix3d& U, const Vector3d& s)
-    /** exp for diagonalised matrix  m = U diag(s) U^{-1}
+    /** exp for a diagonalised matrix  m = U diag(s) U^{-1}
      * @param U diagonalising matrix
      * @param s eigenvalues
      * @return exp(m)
@@ -247,36 +258,36 @@ namespace AffineLib{
         return(U* d.asDiagonal() *U.inverse());
     }
     
-    Matrix3d expSymD(const Matrix3d& m)
-    /** exp for symmetric matrix by diagonalization (slower than expSym)
+    Matrix3d expSymDiag(const Matrix3d& m)
+    /** exp for a symmetric matrix by diagonalization
      * @param m symmetric matrix
      * @return exp(m)
      */
     {
-        assert( ((m - m.transpose())).squaredNorm() < EPSILON );
+        assert( ((m - m.transpose())).squaredNorm() < TOLERANCE );
         if (m.squaredNorm() < EPSILON){
-            return E+m;
+            return Id3+m+0.5*m*m;
         }
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
-        eigensolver.computeDirect(m);
+        eigensolver.compute(m);
         Vector3d s(eigensolver.eigenvalues());
         Matrix3d U(eigensolver.eigenvectors());
         s = s.array().exp();
         return(U * s.asDiagonal() * U.transpose());
     }
     
-    Matrix3d logSymD(const Matrix3d& m)
-    /** log for symmetric matrix by diagonalization (slower than logSym)
+    Matrix3d logSymDiag(const Matrix3d& m)
+    /** log for a symmetric matrix by diagonalization
      * @param m symmetric matrix
      * @return log(m)
      */
     {
-        assert( ((m - m.transpose())).squaredNorm() < EPSILON );
-        if ((m-E).squaredNorm() < EPSILON){
-            return m-E;
+        assert( ((m - m.transpose())).squaredNorm() < TOLERANCE );
+        if ((m-Id3).squaredNorm() < EPSILON){
+            return m-Id3-0.5*(m-Id3)*(m-Id3);
         }
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
-        eigensolver.computeDirect(m);
+        eigensolver.compute(m);
         Vector3d s(eigensolver.eigenvalues());
         Matrix3d U(eigensolver.eigenvectors());
         s = s.array().log();
@@ -284,112 +295,84 @@ namespace AffineLib{
     }
     
     Matrix3d expSym(const Matrix3d& m, Vector3d e=Vector3d::Zero())
-    /** exp for symmetric matrix by spectral decomposition
+    /** exp for a symmetric matrix by spectral decomposition
      * @param m symmetric matrix
-     * @param e if eigenvalues of m are given, we use it
+     * @param e if eigenvalues of m are provided, we use it
      * @return exp(m)
      */
     {
-//        assert( ((m - m.transpose())).squaredNorm() < EPSILON );
-        if (m.squaredNorm() < EPSILON){
-            return E + m;
-        }
+        assert( ((m - m.transpose())).squaredNorm() < TOLERANCE );
         if(e == Vector3d::Zero()){
             // compute eigenvalues if not given
             // eigenvalues are sorted in increasing order.
             SelfAdjointEigenSolver<Matrix3d> eigensolver;
             eigensolver.computeDirect(m, EigenvaluesOnly);
             e = eigensolver.eigenvalues();
-        }
-        double a, b, c;
-        double e12 = e[0] - e[1];
-        double e23 = e[1] - e[2];
-        double e13 = e[0] - e[2];
-        // when some eigenvalues coincide
-        if(abs(e12)<EPSILON){
-            if(abs(e23)<EPSILON){
-                return exp(e[1]) * E;
-            }else{
-                a=exp(e[1]) / e23;
-                b=exp(e[2]) / e23;
-                return (a-b)*m + (e[1]*b-e[2]*a)*E;
-            }
-        }else{
-            if(abs(e23)<EPSILON){
-                a=exp(e[0]) / e12;
-                b=exp(e[1]) / e12;
-                return (a-b)*m + (e[0]*b-e[1]*a)*E;
+            if(abs(e[0])<TOLERANCE){
+                eigensolver.compute(m, EigenvaluesOnly);
+                e = eigensolver.eigenvalues();
             }
         }
-        // when all eigenvalues are distinct
-        a = exp(e[0]) / (e12*e13);
-        b = -exp(e[1]) / (e23*e12);
-        c = exp(e[2]) / (e13*e23);
-        return (a + b + c) * m * m
-        - (a * (e[1] + e[2]) + b * (e[2] + e[0]) + c * (e[0] + e[1])) * m
-        + (a * e[1] * e[2] + b * e[2] * e[0] + c * e[0] * e[1]) * E;
+        Matrix3d A = m-e[1]*Id3;
+        if (A.squaredNorm() < EPSILON){
+            return exp(e[1])*(Id3+A+0.5*A*A);
+        }
+        double x(e[0]-e[1]),y(e[2]-e[1]);
+        double t2ex = abs(x)>EPSILON ? (exp(x)-1-x)/(x*x) : 0.5+x/6+x*x/24;
+        double t2ey = abs(y)>EPSILON ? (exp(y)-1-y)/(y*y) : 0.5+y/6+y*y/24;
+        
+        double b = 1- x*y*(t2ex-t2ey)/(x-y);
+        double c = (x*t2ex- y*t2ey)/(x-y);
+        Matrix3d ans(exp(e[1])*( Id3 + b*A + c*A*A));
+        return (ans+ans.transpose())/2;
     }
     
+    
     Matrix3d logSym(const Matrix3d& m, Vector3d& lambda)
-    /** log for positive symmetric matrix by spectral decomposition
+    /** log for a positive definite symmetric matrix by spectral decomposition
      * @param m symmetric matrix
      * @param lambda returns eigen values for log(m)
      * @return log(m)
      */
     {
-        assert( ((m - m.transpose())).squaredNorm() < EPSILON );
-        if ((m-E).squaredNorm() < EPSILON){
-            return m-E;
-        }
+        assert( ((m - m.transpose())).squaredNorm() < TOLERANCE );
         // compute eigenvalues only
-        // eigenvalues are sorted in increasing order.
+        // eigenvalues are sorted in the increasing order.
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
         eigensolver.computeDirect(m, EigenvaluesOnly);
-//        eigensolver.compute(m, EigenvaluesOnly);
-        Vector3d e;
-        e = eigensolver.eigenvalues();
-        assert(e[0] > 0 && e[1] > 0 && e[2] > 0);
-        double a, b, c;
-        double e12 = e[0] - e[1];
-        double e23 = e[1] - e[2];
-        double e13 = e[0] - e[2];
-        lambda = e.array().log();
-        // when some eigenvalues coincide
-        if(abs(e12)<EPSILON){
-            if(abs(e23)<EPSILON){
-                return lambda(0) * E;
-            }else{
-                a= lambda(1) / e23;
-                b= lambda(2) / e23;
-                return (a-b)*m + (e[1]*b-e[2]*a)*E;
-            }
-        }else{
-            if(abs(e23)<EPSILON){
-                a=lambda(0) / e12;
-                b=lambda(1) / e12;
-                return (a-b)*m + (e[0]*b-e[1]*a)*E;
-            }
+        Vector3d e(eigensolver.eigenvalues());
+        if(abs(e[0])<TOLERANCE){
+            eigensolver.compute(m, EigenvaluesOnly);
+            e = eigensolver.eigenvalues();
         }
-        // when all eigenvalues are distinct
-        a = lambda(0) / (e12*e13);
-        b = -lambda(1) / (e23*e12);
-        c = lambda(2) / (e13*e23);
-        return (a + b + c) * m * m
-        - (a * (e[1] + e[2]) + b * (e[2] + e[0]) + c * (e[0] + e[1])) * m
-        + (a * e[1] * e[2] + b * e[2] * e[0] + c * e[0] * e[1]) * E;
+        assert(e[0] > 0 && e[1] > 0 && e[2] > 0);
+        lambda = e.array().log();
+        double x(e[0]/e[1]),y(e[2]/e[1]);
+        double t2lx = abs(x-1)>EPSILON ? (log(x)-x+1)/(x-1) : -(x-1)/2+(x-1)*(x-1)/3;
+        double t2ly = abs(y-1)>EPSILON ? (log(y)-y+1)/(y-1) : -(y-1)/2+(y-1)*(y-1)/3;
+        double a,c;
+        if(abs(x-y)>EPSILON){
+            a = -1 + (y*t2lx - x*t2ly)/(x-y);
+            c = (t2lx - t2ly)/(x-y);
+        }else{
+            a = -1/6 + x*y/3;
+            c = -0.5 + (x+y)/3;
+        }
+        Matrix3d ans((a+log(e[1]))*Id3 - (a+c)/e[1]*m + c/(e[1]*e[1])*m*m);
+        return (ans+ans.transpose())/2;
     }
     
     
     Matrix3d frechetSO(const std::vector<Matrix3d> &m, const std::vector<double> &w, const int max_step=10)
-    /** Frechet sum for rotations
+    /** the Frechet mean for rotations
      * @param m array of rotation matrices to be averaged
      * @param w array of weights
      * @param max_step max steps for iteration
-     * @return weighted Frechet sum
+     * @return weighted Frechet mean
      */
     {
         assert(m.size() == w.size());
-        if(m.empty()) return(E);
+        if(m.empty()) return(Id3);
         Matrix3d Z = m[0];
         for(int i=0;i<max_step;i++){
             Matrix3d W = Matrix3d::Zero();
@@ -397,87 +380,37 @@ namespace AffineLib{
             for(int j=0;j<m.size();j++){
                 W += w[j] * logSO(ZI * m[j]);
             }
+            W = (W-W.transpose())/2;
             if(W.squaredNorm()<EPSILON) break;
             Z = Z * expSO(W);
         }
         return(Z);
     }
     
-    Matrix4d frechetSE(const std::vector<Matrix4d> &m, const std::vector<double> &w, const int max_step=10)
-    /** Frechet sum for rigid transformations
-     * @param m array of rigid transformation matrices to be averaged
+    
+    Matrix3d frechetSym(const std::vector<Matrix3d> &m, const std::vector<double> &w, const int max_step=10)
+    /** the Frechet mean for symmetric matrices
+     * @param m array of positive definite symmetric matrices to be averaged
      * @param w array of weights
      * @param max_step max steps for iteration
-     * @return weighted Frechet sum
+     * @return weighted Frechet mean
      */
     {
         assert(m.size() == w.size());
-        if(m.empty()) return(Matrix4d::Identity());
-        Matrix4d Z = m[0];
+        if(m.empty()) return(Id3);
+        Vector3d e;
+        Matrix3d Z = m[0];
         for(int i=0;i<max_step;i++){
-            Matrix4d W = Matrix4d::Zero();
-            Matrix4d ZI = Z.inverse();
+            Matrix3d W = Matrix3d::Zero();
+            Matrix3d ZI = Z.inverse();
             for(int j=0;j<m.size();j++){
-                W += w[j] * logSEc(ZI * m[j], Matrix4d::Zero());
+                W += w[j] * logSym(ZI * m[j], e);
             }
+            W = (W+W.transpose())/2;
             if(W.squaredNorm()<EPSILON) break;
-            Z = Z * expSE(W);
+            Z = Z * expSO(W);
         }
         return(Z);
-    }
-    
-    Vector3d eigenvaluesSym(const Matrix3d &m)
-    /** (Obsolete) Eigenvalues for symmetric matrix using Viete's formula
-     * use Eigen's "SelfAdjointEigenSolver< MatrixType > & computeDirect" instead
-     * @param m symmetric matrix
-     * @return eigenvalues
-     */
-    {
-        assert( ((m - m.transpose())).squaredNorm() < EPSILON );
-        Vector3d w;
-        double s1,s2,s3;
-        // check if m is diagonal;
-        if (m(0,1)*m(0,1)+m(0,2)*m(0,2)+m(1,2)*m(1,2)<EPSILON){
-            s1 = m(0,0);
-            s2 = m(1,1);
-            s3 = m(2,2);
-        }else{
-            double a = - m.trace();
-            double aa = a*a;
-            double b = (aa - m.squaredNorm()) / 2;
-            
-            double p = aa / 3 - b;
-            double q = 2 * aa * a / 27 - a * b / 3 - m.determinant();
-            
-            // since p,q are close to 0, the next statement is numerically unstable.
-            if (p==0) {
-                s1 = s2 = s3 = -a/3;
-            }else {
-                double r = sqrt(4 * p / 3);
-                double k = - 4 * q / (r * r * r);
-                double theta;
-                if (k>1.0){
-                    theta = 0.0;
-                }else if(k<-1.0){
-                    theta = M_PI;
-                }else{
-                    theta = acos(k);
-                }
-                s1 = r*cos(theta / 3) - a / 3;
-                s2 = r*cos((theta +  2 * M_PI) / 3) - a / 3;
-                s3 = r*cos((theta + 4 * M_PI) / 3) - a / 3;
-            }
-        }
-        // sort
-        if (s1 < s2) {
-            if (s3 < s1) std::swap(s1,s3);
-        } else {
-            if (s2 < s3) std::swap(s1,s2);
-            else std::swap(s1,s3);
-        }
-        if(s3<s2) std::swap(s2,s3);
-        w << s1, s2, s3;
-        return w;
     }
     
     void polarDiag(const Matrix3d& m, Matrix3d& U, Vector3d& s, Matrix3d& R)
@@ -492,7 +425,6 @@ namespace AffineLib{
         Matrix3d A= m*m.transpose();
         SelfAdjointEigenSolver<Matrix3d> eigensolver;
         eigensolver.computeDirect(A);
-//        eigensolver.compute(A);
         s = eigensolver.eigenvalues();
         U = Matrix3d(eigensolver.eigenvectors());
         s = s.array().sqrt();
@@ -595,19 +527,19 @@ namespace AffineLib{
         R = expSym(-logS, -lambda/2.0) * m;
     }
     
-    int polarHigham(const Matrix3d A, Matrix3d& S, Matrix3d& R){
-        /** Polar decomposition m = S R   by iteration by Higham
+    int polarHigham(const Matrix3d& m, Matrix3d& S, Matrix3d& R){
+        /** Polar decomposition m = S R   by Higham's iterative method
          * @param m matrix to be decomposed
          * @param S shear part
          * @param R rotation part
          * @return number of iterations
          */
-        Matrix3d Curr = A;
+        Matrix3d Curr = m;
         Matrix3d Prev;
         int iter=0;
         do {
             assert(Curr.determinant() != 0.0);
-            MatrixXd Ad = Curr.inverse().transpose();
+            Matrix3d Ad = Curr.inverse().transpose();
             double nad = Ad.array().abs().colwise().sum().maxCoeff() * Ad.array().abs().rowwise().sum().maxCoeff();
             double na = Curr.array().abs().colwise().sum().maxCoeff() * Curr.array().abs().rowwise().sum().maxCoeff();
             double gamma = sqrt(sqrt(nad / na));
@@ -617,7 +549,7 @@ namespace AffineLib{
             iter++;
         } while ((Prev-Curr).lpNorm<1>() > EPSILON*Prev.lpNorm<1>());
         R = Curr;
-        S = A * Curr.transpose();
+        S = m * Curr.transpose();
         return iter;
     }
     
@@ -629,7 +561,7 @@ namespace AffineLib{
      * @param R rotation part
      */
     {
-//        assert(m.determinant()>0);
+        assert(m.determinant()>0);
         Vector3d lambda=Vector3d::Zero();
         logS = logSym(m*m.transpose(), lambda)/2.0;
         R = expSym(-logS, -lambda/2.0) * m;
@@ -638,8 +570,8 @@ namespace AffineLib{
     template<typename T>
     T blendMat(const std::vector<T>& A, const std::vector<double>& weight){
     /** blend matrices
-     * @param A list of matrices
-     * @param weight list of weights
+     * @param A array of matrices
+     * @param weight array of weights
      * @return blended matrix
      */
         assert(A.size() == weight.size());
@@ -669,9 +601,8 @@ namespace AffineLib{
         return X;
     }
     
-    // blend quaternion linearly
     Vector4d blendQuat(const std::vector<Vector4d>& A, const std::vector<double>& weight){
-        /** blend 4-vector; if weight doesn't sum up to one, the result will be complimented by 1
+        /** blend 4-vector (quaternion); if weight doesn't sum up to one, the result will be complimented by 1
          * this is suitable for linear blending of quaternions
          * @param A list of 4-vectors
          * @param weight list of weights

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>IDESourceControlProjectFavoriteDictionaryKey</key>
+	<false/>
+	<key>IDESourceControlProjectIdentifier</key>
+	<string>7D69B71C-C045-4081-9DE8-C5CEEACDF333</string>
+	<key>IDESourceControlProjectName</key>
+	<string>ProbeDeformer</string>
+	<key>IDESourceControlProjectOriginsDictionary</key>
+	<dict>
+		<key>BF89BD508BA9C5731F8FFD023C48A1EFAE278715</key>
+		<string>github.com:shizuo-kaji/ProbeDeformerMaya.git</string>
+	</dict>
+	<key>IDESourceControlProjectPath</key>
+	<string>ProbeDeformer.xcodeproj</string>
+	<key>IDESourceControlProjectRelativeInstallPathDictionary</key>
+	<dict>
+		<key>BF89BD508BA9C5731F8FFD023C48A1EFAE278715</key>
+		<string>../..</string>
+	</dict>
+	<key>IDESourceControlProjectURL</key>
+	<string>github.com:shizuo-kaji/ProbeDeformerMaya.git</string>
+	<key>IDESourceControlProjectVersion</key>
+	<integer>111</integer>
+	<key>IDESourceControlProjectWCCIdentifier</key>
+	<string>BF89BD508BA9C5731F8FFD023C48A1EFAE278715</string>
+	<key>IDESourceControlProjectWCConfigurations</key>
+	<array>
+		<dict>
+			<key>IDESourceControlRepositoryExtensionIdentifierKey</key>
+			<string>public.vcs.git</string>
+			<key>IDESourceControlWCCIdentifierKey</key>
+			<string>BF89BD508BA9C5731F8FFD023C48A1EFAE278715</string>
+			<key>IDESourceControlWCCName</key>
+			<string>probeDeformer</string>
+		</dict>
+	</array>
+</dict>
+</plist>

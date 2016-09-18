@@ -11,7 +11,6 @@
 
 #pragma once
 
-#include <Eigen/Core>
 #include <Eigen/Dense>
 #include <Eigen/StdVector>
 #include <Eigen/Geometry>
@@ -24,6 +23,7 @@
 
 
 // tetrahedra construction mode
+#define TM_NONE -1
 #define TM_FACE 0
 #define TM_EDGE 1
 #define TM_VERTEX 2
@@ -31,7 +31,7 @@
 
 
 /// threshold for being zero
-#define EPSILON 10e-6
+//#define EPSILON 10e-6
 
 using namespace Eigen;
 
@@ -171,8 +171,7 @@ namespace Tetrise{
                 }
             }
         }else if(tetMode == TM_VERTEX){
-            int numTet = (int)faceList.size();
-            tetList.reserve(numTet);
+            tetList.reserve(faceList.size());
             dim = numPts + (int)vertexList.size();
             for(int i=0;i<vertexList.size();i++){
                 for(int j=0;j<vertexList[i].connectedTriangles.size()/2;j++){
@@ -183,8 +182,7 @@ namespace Tetrise{
                 }
             }
         }else if(tetMode == TM_VFACE){
-            int numTet = (int)faceList.size();
-            tetList.reserve(numTet);
+            tetList.reserve(faceList.size());
             int cur=0;
             for(int i=0;i<vertexList.size();i++){
                 for(int j=0;j<vertexList[i].connectedTriangles.size()/2;j++){
@@ -266,21 +264,17 @@ namespace Tetrise{
         Vector3d u, v, q, c;
         int numTet = (int)tetList.size()/4;
         P.clear();
+        P.reserve(numTet);
         if(tetMode == TM_FACE || tetMode == TM_VFACE){
-            P.resize(numTet);
             for(int i=0;i<numTet;i++){
                 Vector3d p0=pts[tetList[4*i]];
                 Vector3d p1=pts[tetList[4*i+1]];
                 Vector3d p2=pts[tetList[4*i+2]];
-                u=p1-p0;
-                v=p2-p0;
-                q=u.cross(v);
-                c = q.normalized()+(p0+p1+p2)/3;
-//                c = q/sqrt(q.norm())+(p0+p1+p2)/3;
-                P[i] = mat(p0,p1,p2,c);
+                q = (p1-p0).cross(p2-p0);
+                c = q/sqrt(q.norm())+(p0+p1+p2)/3;
+                P.push_back(mat(p0,p1,p2,c));
             }
         }else if(tetMode == TM_EDGE){
-            P.resize(numTet);
             for(int i=0;i<edgeList.size();i++){
                 c = Vector3d::Zero();
                 for(int j=0;j<2;j++){
@@ -290,25 +284,30 @@ namespace Tetrise{
                     q=u.cross(v).normalized();
                     c += q;
                 }
-                c = (pts[edgeList[i].vertices[0]]+pts[edgeList[i].vertices[1]])/2 + c.normalized();
+                u = pts[edgeList[i].vertices[0]];
+                v = pts[edgeList[i].vertices[1]];
+                c = (u+v)/2 + (u-v).norm() * c.normalized();
                 for(int j=0;j<2;j++){
                     Vector3d p0=pts[tetList[8*i + 4*j]];
                     Vector3d p1=pts[tetList[8*i + 4*j + 1]];
                     Vector3d p2=pts[tetList[8*i + 4*j + 2]];
-                    P[2*i+j] = mat(p0,p1,p2,c);
+                    P.push_back(mat(p0,p1,p2,c));
                 }
             }
         }else if(tetMode == TM_VERTEX){
-            P.reserve(numTet);
             for(int i=0;i<vertexList.size();i++){
+                c = Vector3d::Zero();
                 Vector3d p0 = pts[vertexList[i].index];
-                Vector3d p1,p2,c=Vector3d::Zero();
+                Vector3d p1,p2;
+                double area = 0;
                 for(int j=0;j<vertexList[i].connectedTriangles.size()/2;j++){
                     p1 = pts[vertexList[i].connectedTriangles[2*j]];
                     p2 = pts[vertexList[i].connectedTriangles[2*j+1]];
-                    c += ((p1-p0).cross(p2-p0)).normalized();
+                    q = (p1-p0).cross(p2-p0);
+                    area += q.norm()/2;
+                    c += q.normalized();
                 }
-                c = p0 + c.normalized();
+                c = p0 + sqrt(area)*(c.normalized());
                 for(int j=0;j<vertexList[i].connectedTriangles.size()/2;j++){
                     p1 = pts[vertexList[i].connectedTriangles[2*j]];
                     p2 = pts[vertexList[i].connectedTriangles[2*j+1]];
@@ -351,8 +350,8 @@ namespace Tetrise{
                 }
                 c = p0 + c.normalized();
                 for(int j=0;j<vertexList[i].connectedTriangles.size()/2;j++){
-                    p1 = p0+(pts[vertexList[i].connectedTriangles[2*j]]-p0).normalized();
-                    p2 = p0+(pts[vertexList[i].connectedTriangles[2*j+1]]-p0).normalized();
+                    p1 = p0+(pts[vertexList[i].connectedTriangles[2*j]]-p0); //.normalized();
+                    p2 = p0+(pts[vertexList[i].connectedTriangles[2*j+1]]-p0); //.normalized();
                     P.push_back( mat(p0,p1,p2,c));
                 }
             }

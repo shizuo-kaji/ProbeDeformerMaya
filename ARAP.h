@@ -13,13 +13,28 @@
 #include <map>
 #include <Eigen/Sparse>
 
+//#define _SuiteSparse
+//#define _CERES
+
 using namespace Eigen;
 
 typedef SparseMatrix<double> SpMat;
+typedef Triplet<double> T;
+
+#ifdef _SuiteSparse
+#include <Eigen/CholmodSupport>
+typedef CholmodDecomposition<SpMat> SpSolver;
+#else
 typedef SimplicialLDLT<SpMat> SpSolver;
 //typedef SimplicialLLT<SpMat> SpSolver;
-//matypedef SparseLU<SpMat> SpSolver;
-typedef Triplet<double> T;
+//typedef SparseLU<SpMat> SpSolver;
+#endif
+
+#ifdef _CERES
+#include "ceres/ceres.h"
+#include "glog/logging.h"
+#endif
+
 
 #define ERROR_ARAP_PRECOMPUTE 1
 
