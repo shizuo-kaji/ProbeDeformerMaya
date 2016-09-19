@@ -61,7 +61,6 @@
 		2A1C610C1D1BDA2B004A5897 /* mayaHeaders.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = mayaHeaders.h; sourceTree = "<group>"; };
 		2A1C610D1D1BDA2B004A5897 /* StdAfx.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = StdAfx.cpp; sourceTree = "<group>"; };
 		2A1C610E1D1BDA2B004A5897 /* StdAfx.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = StdAfx.h; sourceTree = "<group>"; };
-		2A35629A198A2D43002AA823 /* ui_probeDeformer.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = ui_probeDeformer.py; path = ../../Maya/plugin_deformer/ui_probeDeformer.py; sourceTree = "<group>"; };
 		2A35629C198CED6E002AA823 /* probeDeformerPy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = probeDeformerPy.py; path = ../../Maya/plugin_deformer/probeDeformerPy.py; sourceTree = "<group>"; };
 		2A35629D198CED76002AA823 /* probeLocator.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = probeLocator.py; path = ../../Maya/plugin_deformer/probeLocator.py; sourceTree = "<group>"; };
 		2A48F2CE1920F37300AE0DAB /* probeDeformer.bundle */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.dylib"; includeInIndex = 0; path = probeDeformer.bundle; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -107,7 +106,6 @@
 				2AD5569D198EAB49001F79B2 /* tetrise.h */,
 				2A35629D198CED76002AA823 /* probeLocator.py */,
 				2A35629C198CED6E002AA823 /* probeDeformerPy.py */,
-				2A35629A198A2D43002AA823 /* ui_probeDeformer.py */,
 				2A48F2E31920F65E00AE0DAB /* LICENSE */,
 				2A48F2E41920F65E00AE0DAB /* README.md */,
 				2A48F2D01920F37300AE0DAB /* ProbeDeformer */,

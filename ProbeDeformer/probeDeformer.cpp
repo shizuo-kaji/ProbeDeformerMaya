@@ -206,7 +206,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             for(int i=0;i<numPrb;i++){
                 weightConstraint[i].clear();
             }
-            if( weightMode == WM_HARMONIC_NEIBOUR ){
+            if( weightMode == WM_HARMONIC_NEIGHBOUR ){
                 for(int i=0;i<numPrb;i++){
                     for(int j=0;j<numPts;j++){
                         if(dist[j][i]<effectRadius){
@@ -280,13 +280,8 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         if(blendMode == BM_SRL){
             Matrix3d RR,SS;
             Vector3d l=blendMat(L, wll);
-            if(frechetSum){
-                RR = frechetSO(R, wrr);
-                SS = frechetSym(S, wss);
-            }else{
-                RR = expSO(blendMat(logR, wrr));
-                SS = expSym(blendMat(logS, wss));
-            }
+            SS = expSym(blendMat(logS, wss));
+            RR = frechetSum ? frechetSO(R, wrr) : expSO(blendMat(logR, wr[j]));
             mat = pad(SS*RR, l);
         }else if(blendMode == BM_SSE){
             Matrix4d RR;
@@ -411,6 +406,7 @@ MStatus probeDeformerNode::initialize()
     eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
     eAttr.addField( "harmonic", WM_HARMONIC);
+    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIGHBOUR);
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );

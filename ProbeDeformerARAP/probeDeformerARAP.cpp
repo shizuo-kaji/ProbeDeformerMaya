@@ -296,7 +296,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIBOUR){
+        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR){
             std::vector<int> fList,tList;
             std::vector< std::vector<double> > ptsWeight(numPrb), w_tet(numPrb);
             std::vector<Matrix4d> P;
@@ -306,7 +306,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             for(int i=0;i<numPrb;i++){
                 weightConstraint[i].clear();
             }
-            if( weightMode == WM_HARMONIC_NEIBOUR ){
+            if( weightMode == WM_HARMONIC_NEIGHBOUR ){
                 for(int i=0;i<numPrb;i++){
                     for(int j=0;j<numPts;j++){
                         if(distPts[i][j]<effectRadius){
@@ -330,7 +330,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 }
             }
         }
-        // normalise
+        // normalise weights
         bool normaliseWeight = data.inputValue( aNormaliseWeight ).asBool();
         for(int j=0;j<numTet;j++){
             double sum = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
@@ -409,7 +409,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
 	for (int j = 0; j < numTet; j++){
 		// blend matrix
 		if (blendMode == BM_SRL){
-			blendedS[j] = frechetSum ? frechetSym(S, ws[j]) : expSym(blendMat(logS, ws[j]));
+			blendedS[j] = expSym(blendMat(logS, ws[j]));
 			Vector3d l = blendMat(L, wl[j]);
             blendedR[j] = frechetSum ? frechetSO(R, wr[j]) : expSO(blendMat(logR, wr[j]));
 			A[j] = pad(blendedS[j]*blendedR[j], l);
@@ -614,7 +614,7 @@ MStatus probeDeformerARAPNode::initialize(){
     eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
     eAttr.addField( "harmonic-closest", WM_HARMONIC);
-    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIBOUR);
+    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIGHBOUR);
     eAttr.setStorable(true);
     eAttr.setKeyable(false);
     addAttribute( aWeightMode );
