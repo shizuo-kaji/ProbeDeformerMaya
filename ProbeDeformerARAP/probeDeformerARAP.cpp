@@ -57,6 +57,7 @@ MObject probeDeformerARAPNode::aProbeWeight;
 MObject probeDeformerARAPNode::aProbeConstraintRadius;
 MObject probeDeformerARAPNode::aComputeWeight;
 MObject probeDeformerARAPNode::aNormaliseWeight;
+MObject probeDeformerARAPNode::aAreaWeighted;
 
 void* probeDeformerARAPNode::creator() { return new probeDeformerARAPNode; }
  
@@ -67,6 +68,7 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
     MThreadUtils::syncNumOpenMPThreads();    // for OpenMP
     
     bool worldMode = data.inputValue( aWorldMode ).asBool();
+    bool areaWeighted = data.inputValue( aAreaWeighted ).asBool();
     short stiffnessMode = data.inputValue( aStiffness ).asShort();
     short blendMode = data.inputValue( aBlendMode ).asShort();
     short tetMode = data.inputValue( aTetMode ).asShort();
@@ -120,9 +122,9 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }
         // set tetrahedra
 		std::vector<Matrix4d> P;
-        getMeshData(data, input, inputGeom, mIndex, tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        getMeshData(data, input, inputGeom, mIndex, tetMode, pts, tetList, faceList, edgeList, vertexList, P, tetWeight);
         dim = removeDegenerate(tetMode, numPts, tetList, faceList, edgeList, vertexList, P);
-        makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P);
+        makeTetMatrix(tetMode, pts, tetList, faceList, edgeList, vertexList, P, tetWeight);
         makeTetCenterList(tetMode, pts, tetList, tetCenter);
         numTet = (int)tetList.size()/4;
         PI.resize(numTet);
@@ -139,7 +141,6 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             }
             makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight, tetWeight);
         }else if(stiffnessMode == SM_LEARN) {
-            tetWeight.resize(numTet);
             std::vector<double> tetEnergy(numTet,0);
             MArrayDataHandle hSupervisedMesh = data.inputArrayValue(aSupervisedMesh);
             int numSupervisedMesh = hSupervisedMesh.elementCount();
@@ -156,8 +157,8 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                 for(int i=0;i<numPts;i++){
                     spts[i] << Mspts[i].x, Mspts[i].y, Mspts[i].z;
                 }
-                std::vector<Matrix4d> Q(numTet);
-                makeTetMatrix(tetMode, spts, tetList, faceList, edgeList, vertexList, Q);
+                std::vector<double> dummy_weight;
+                makeTetMatrix(tetMode, spts, tetList, faceList, edgeList, vertexList, Q, dummy_weight);
                 Matrix3d S,R;
                 for(int i=0;i<numTet;i++)  {
                     polarHigham((PI[i]*Q[i]).block(0,0,3,3), S, R);
@@ -168,11 +169,13 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
             double max_energy = *std::max_element(tetEnergy.begin(), tetEnergy.end());
             for(int i=0;i<numTet;i++)  {
                 double w = 1.0 - tetEnergy[i]/(max_energy+EPSILON);
-                tetWeight[i] = w*w;
+                tetWeight[i] *= w*w;
             }
         }else{
-            tetWeight.clear();
-            tetWeight.resize(numTet,1.0);
+            if(!areaWeighted){
+                tetWeight.clear();
+                tetWeight.resize(numTet,1.0);
+            }
         }
 
         // probe position
@@ -296,11 +299,12 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR){
+        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR || weightMode == WM_HARMONIC_COTAN){
             std::vector<int> fList,tList;
             std::vector< std::vector<double> > ptsWeight(numPrb), w_tet(numPrb);
             std::vector<Matrix4d> P;
-            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P);
+            std::vector<double> fWeight;
+            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P, fWeight);
             std::vector< std::map<int,double> > weightConstraint(numPrb);
             std::vector<double> weightConstraintValue(0);
             for(int i=0;i<numPrb;i++){
@@ -315,13 +319,21 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
                         }
                     }
                 }
-            }else if( weightMode == WM_HARMONIC){
+            }else if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_COTAN){
                 for(int i=0;i<numPrb;i++){
                     weightConstraint[i][closestPts[i]] = 1;
                     weightConstraintValue.push_back(probeWeight[i]);
                 }
             }
-            isError = harmonicWeight(d, P, tList, fList, weightConstraint, weightConstraintValue, ptsWeight);
+            if(!areaWeighted){
+                fWeight.clear();
+                fWeight.resize(P.size(),1.0);
+            }
+            if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR ){
+                isError = harmonicWeight(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+            }else{
+                isError = harmonicCotan(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+            }
             if(isError>0) return MS::kFailure;
             for(int i=0;i<numPrb;i++){
                 makeTetWeightList(tetMode, tetList, faceList, edgeList, vertexList, ptsWeight[i], w_tet[i]);
@@ -472,8 +484,8 @@ MStatus probeDeformerARAPNode::deform( MDataBlock& data, MItGeometry& itGeo, con
         }
         // if iteration continues
         if(k+1<numIter || visualisationMode == VM_ENERGY){
-            Q.resize(numTet);
-            makeTetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q);
+            std::vector<double> dummy_weight;
+            makeTetMatrix(tetMode, new_pts, tetList, faceList, edgeList, vertexList, Q, dummy_weight);
             Matrix3d S,R,newS,newR;
             if(blendMode == BM_AFF || blendMode == BM_LOG4 || blendMode == BM_LOG3){
                 for(int i=0;i<numTet;i++){
@@ -614,7 +626,8 @@ MStatus probeDeformerARAPNode::initialize(){
     eAttr.addField( "cut-off", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
     eAttr.addField( "harmonic-closest", WM_HARMONIC);
-    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIGHBOUR);
+    eAttr.addField( "harmonic-neighbour", WM_HARMONIC_NEIGHBOUR);
+    eAttr.addField( "harmonic-cotan", WM_HARMONIC_COTAN);
     eAttr.setStorable(true);
     eAttr.setKeyable(false);
     addAttribute( aWeightMode );
@@ -661,8 +674,14 @@ MStatus probeDeformerARAPNode::initialize(){
 	addAttribute( aTransWeight );
 	attributeAffects( aTransWeight, outputGeom );
 	attributeAffects( aTransWeight, aARAP );
-    
-	aConstraintWeight = nAttr.create("constraintWeight", "cw", MFnNumericData::kDouble, 1.0);
+
+    aAreaWeighted = nAttr.create( "areaWeighted", "aw", MFnNumericData::kBoolean, false );
+    nAttr.setStorable(true);
+    addAttribute( aAreaWeighted );
+    attributeAffects( aAreaWeighted, outputGeom );
+    attributeAffects( aAreaWeighted, aARAP );
+
+	aConstraintWeight = nAttr.create("constraintWeight", "cw", MFnNumericData::kDouble, 0.001);
     nAttr.setStorable(true);
 	addAttribute( aConstraintWeight );
 	attributeAffects( aConstraintWeight, outputGeom );

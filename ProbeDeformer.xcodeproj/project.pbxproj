@@ -394,7 +394,6 @@
 					"-lFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_LOCATION = "$(HOME)/Library/Preferences/Autodesk/maya/2014-x64";
 				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
@@ -432,7 +431,6 @@
 					"-lFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_LOCATION = "$(HOME)/Library/Preferences/Autodesk/maya/2014-x64";
 				VALID_ARCHS = x86_64;
 			};
 			name = Release;
@@ -470,7 +468,6 @@
 					"-lFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_LOCATION = "$(HOME)/Library/Preferences/Autodesk/maya/2014-x64";
 				VALID_ARCHS = x86_64;
 			};
 			name = Debug;
@@ -507,7 +504,6 @@
 					"-lFoundation",
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_LOCATION = "$(HOME)/Library/Preferences/Autodesk/maya/2014-x64";
 				VALID_ARCHS = x86_64;
 			};
 			name = Release;

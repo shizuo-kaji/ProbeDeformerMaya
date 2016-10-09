@@ -56,6 +56,7 @@ public:
     static MObject      aProbeWeight;
     static MObject      aProbeConstraintRadius;
     static MObject      aNormaliseWeight;
+    static MObject      aAreaWeighted;
     
 private:
     // variables

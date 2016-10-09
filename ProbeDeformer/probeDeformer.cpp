@@ -36,6 +36,7 @@ MObject probeDeformerNode::aVisualisationMode;
 MObject probeDeformerNode::aComputeWeight;
 MObject probeDeformerNode::aVisualisationMultiplier;
 MObject probeDeformerNode::aNormaliseWeight;
+MObject probeDeformerNode::aAreaWeighted;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
@@ -45,6 +46,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     MStatus status;
     MThreadUtils::syncNumOpenMPThreads();    // for OpenMP
     bool worldMode = data.inputValue( aWorldMode ).asBool();
+    bool areaWeighted = data.inputValue( aAreaWeighted ).asBool();
     short blendMode = data.inputValue( aBlendMode ).asShort();
     short weightMode = data.inputValue( aWeightMode ).asShort();
     short visualisationMode = data.inputValue( aVisualisationMode ).asShort();
@@ -196,11 +198,12 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC){
+        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR || weightMode == WM_HARMONIC_COTAN){
             std::vector<int> fList,tList;
             std::vector< std::vector<double> > ptsWeight(numPrb), w_tet(numPrb);
             std::vector<Matrix4d> P;
-            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P);
+            std::vector<double> fWeight;
+            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P, fWeight);
             std::vector< std::map<int,double> > weightConstraint(numPrb);
             std::vector<double> weightConstraintValue(0);
             for(int i=0;i<numPrb;i++){
@@ -215,7 +218,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
                         }
                     }
                 }
-            }else if( weightMode == WM_HARMONIC){
+            }else if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_COTAN){
                 std::vector<int> closestPts(numPrb);
                 for(int i=0;i<numPrb;i++){
                     weightConstraint[i].clear();
@@ -233,7 +236,16 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
                     weightConstraintValue.push_back(probeWeight[i]);
                 }
             }
-            int isError = harmonicWeight(d, P, tList, fList, weightConstraint, weightConstraintValue, ptsWeight);
+            if(!areaWeighted){
+                fWeight.clear();
+                fWeight.resize(P.size(),1.0);
+            }
+            int isError;
+            if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR ){
+                isError = harmonicWeight(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+            }else{
+                isError = harmonicCotan(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+            }
             if(isError>0) return MS::kFailure;
             for(int i=0;i<numPrb;i++){
                 for(int j=0;j<numPts;j++){
@@ -406,11 +418,18 @@ MStatus probeDeformerNode::initialize()
     eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
     eAttr.addField( "harmonic", WM_HARMONIC);
-    eAttr.addField( "harmonic-neibour", WM_HARMONIC_NEIGHBOUR);
+    eAttr.addField( "harmonic-neighbour", WM_HARMONIC_NEIGHBOUR);
+    eAttr.addField( "harmonic-cotan", WM_HARMONIC_COTAN);
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );
     attributeAffects( aWeightMode, aComputeWeight );
+
+    aAreaWeighted = nAttr.create( "areaWeighted", "aw", MFnNumericData::kBoolean, false );
+    nAttr.setStorable(true);
+    addAttribute( aAreaWeighted );
+    attributeAffects( aAreaWeighted, outputGeom );
+    attributeAffects( aAreaWeighted, aComputeWeight );
 
 	aEffectRadius = nAttr.create("effectRadius", "er", MFnNumericData::kDouble, 8.0);
     nAttr.setMin( EPSILON );

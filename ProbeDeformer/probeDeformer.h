@@ -48,6 +48,7 @@ public:
     static MObject      aProbeWeight;
     static MObject      aComputeWeight;
     static MObject      aVisualisationMultiplier;
+    static MObject      aAreaWeighted;
 
 private:
 	std::vector<Matrix4d> logSE;
