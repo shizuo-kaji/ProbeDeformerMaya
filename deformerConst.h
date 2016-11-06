@@ -22,8 +22,12 @@
 #define WM_CUTOFF_DISTANCE 1
 #define WM_DRAW 2
 #define WM_HARMONIC 3
-#define WM_HARMONIC_NEIGHBOUR 4
 #define WM_HARMONIC_COTAN 5
+#define WM_HARMONIC_TRANS 10
+
+// cage mode
+#define CM_MVC 20
+#define CM_MLS 30
 
 // constraint mode
 #define CONSTRAINT_NEIGHBOUR 0
@@ -42,7 +46,7 @@
 #define VM_STIFFNESS 4
 
 // error codes
-#define NUMPRB_AND_ATTR_DIFFERENT 2
+#define ERROR_ARAP_PRECOMPUTE 1
 #define INCOMPATIBLE_MESH 3
 #define ERROR_ATTR 4
 

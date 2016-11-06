@@ -11,7 +11,10 @@
 #include "affinelib.h"
 #include "tetrise.h"
 #include "MeshMaya.h"
-#include "ARAP.h"
+#include "laplacian.h"
+#include "deformerConst.h"
+#include "blendAff.h"
+#include "distance.h"
 
 using namespace Eigen;
 
@@ -49,10 +52,13 @@ public:
     static MObject      aComputeWeight;
     static MObject      aVisualisationMultiplier;
     static MObject      aAreaWeighted;
-
+    static MObject      aNeighbourWeighting;
+    
 private:
-	std::vector<Matrix4d> logSE;
-	std::vector<Matrix3d> logR;
+    Laplacian M;
+    BlendAff B;
+    Distance D;
+    std::vector<T> constraint;
     std::vector< std::vector<double> > wr,ws,wl;
     int numPrb, numPts;
 };

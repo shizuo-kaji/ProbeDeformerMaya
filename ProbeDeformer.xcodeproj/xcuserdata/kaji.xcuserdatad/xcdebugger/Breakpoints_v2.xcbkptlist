@@ -10,11 +10,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499657813.128049"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "531"
-            endingLineNumber = "531"
+            startingLineNumber = "509"
+            endingLineNumber = "509"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -26,27 +26,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499331187.792991"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "380"
-            endingLineNumber = "380"
-            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "352"
-            endingLineNumber = "352"
+            startingLineNumber = "373"
+            endingLineNumber = "373"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -64,7 +48,7 @@
             startingLineNumber = "218"
             endingLineNumber = "218"
             landmarkName = "makeTetWeightList(short tetMode, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;int&gt;&amp; faceList, const std::vector&lt;edge&gt;&amp; edgeList, const std::vector&lt;vertex&gt;&amp; vertexList, const std::vector&lt;double&gt;&amp; ptsWeight, std::vector&lt;double&gt;&amp; tetWeight )"
-            landmarkType = "7">
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -88,11 +72,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499331187.792991"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "341"
-            endingLineNumber = "341"
+            startingLineNumber = "362"
+            endingLineNumber = "362"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -104,27 +88,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499331187.792991"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "346"
-            endingLineNumber = "346"
-            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "316"
-            endingLineNumber = "316"
+            startingLineNumber = "367"
+            endingLineNumber = "367"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -142,7 +110,7 @@
             startingLineNumber = "225"
             endingLineNumber = "225"
             landmarkName = "makePtsWeightList(short tetMode, int numPts, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;int&gt;&amp; faceList, const std::vector&lt;edge&gt;&amp; edgeList, const std::vector&lt;vertex&gt;&amp; vertexList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt;double&gt;&amp; ptsWeight )"
-            landmarkType = "7">
+            landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -168,11 +136,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499658698.821808"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "108"
-            endingLineNumber = "108"
+            startingLineNumber = "109"
+            endingLineNumber = "109"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -184,11 +152,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499657813.128049"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "247"
-            endingLineNumber = "247"
+            startingLineNumber = "252"
+            endingLineNumber = "252"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -200,11 +168,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499657813.128049"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "251"
-            endingLineNumber = "251"
+            startingLineNumber = "256"
+            endingLineNumber = "256"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -216,11 +184,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499657813.128049"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "249"
-            endingLineNumber = "249"
+            startingLineNumber = "254"
+            endingLineNumber = "254"
             landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -232,7 +200,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499658698.821808"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "101"
@@ -248,7 +216,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499658698.821808"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "97"
@@ -264,7 +232,7 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
+            timestampString = "499658698.821808"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "99"
@@ -279,182 +247,6 @@
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "429199549.692383"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "163"
-            endingLineNumber = "163"
-            landmarkName = "ARAPprecomputeHard(const std::vector&lt;Matrix4d&gt;&amp; tetMatrixInverse, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, double transWeight, int dim, SpMat&amp; constraintMat, SpSolver&amp; solver)"
-            landmarkType = "9">
-            <Locations>
-               <Location
-                  shouldBeEnabled = "No"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
-                  moduleName = "probeDeformer.bundle"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
-                  timestampString = "429193787.256355"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "162"
-                  endingLineNumber = "162"
-                  offsetFromSymbolStart = "462">
-               </Location>
-               <Location
-                  shouldBeEnabled = "No"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "harmonicWeight(int, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, std::__1::vector&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;, std::__1::allocator&lt;std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; &gt; &gt;&amp;)"
-                  moduleName = "probeDeformerARAP.bundle"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
-                  timestampString = "429193787.556802"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "162"
-                  endingLineNumber = "162"
-                  offsetFromSymbolStart = "598">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "429188200.392123"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "61"
-            endingLineNumber = "61"
-            landmarkName = "ARAPprecompute(const std::vector&lt;Matrix4d&gt;&amp; tetMatrixInverse, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, double transWeight, int dim, SpMat&amp; constraintMat, SpSolver&amp; solver)"
-            landmarkType = "9">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "305"
-            endingLineNumber = "305"
-            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364787.929107"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "327"
-            endingLineNumber = "327"
-            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497339106.084771"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "173"
-            endingLineNumber = "173"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
-            landmarkType = "9">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
-            timestampString = "429364642.333865"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "127"
-            endingLineNumber = "127"
-            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "429364737.93932"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "64"
-            endingLineNumber = "64"
-            landmarkName = "ARAPprecompute(const std::vector&lt;Matrix4d&gt;&amp; tetMatrixInverse, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, double transWeight, int dim, SpMat&amp; constraintMat, SpSolver&amp; solver)"
-            landmarkType = "9">
-            <Locations>
-               <Location
-                  shouldBeEnabled = "No"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "ARAPprecompute(std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, double, int, Eigen::SparseMatrix&lt;double, 0, int&gt;&amp;, Eigen::SimplicialLDLT&lt;Eigen::SparseMatrix&lt;double, 0, int&gt;, 1&gt;&amp;)"
-                  moduleName = "probeDeformer.bundle"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
-                  timestampString = "429364800.437233"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "66"
-                  endingLineNumber = "66"
-                  offsetFromSymbolStart = "2079">
-               </Location>
-               <Location
-                  shouldBeEnabled = "No"
-                  ignoreCount = "0"
-                  continueAfterRunningActions = "No"
-                  symbolName = "ARAPprecompute(std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt; const&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt; const&amp;, std::__1::vector&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt;, std::__1::allocator&lt;std::__1::map&lt;int, double, std::__1::less&lt;int&gt;, std::__1::allocator&lt;std::__1::pair&lt;int const, double&gt; &gt; &gt; &gt; &gt;&amp;, double, int, Eigen::SparseMatrix&lt;double, 0, int&gt;&amp;, Eigen::SimplicialLDLT&lt;Eigen::SparseMatrix&lt;double, 0, int&gt;, 1&gt;&amp;)"
-                  moduleName = "probeDeformerARAP.bundle"
-                  usesParentBreakpointCondition = "Yes"
-                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../ARAP.h"
-                  timestampString = "429364813.16051"
-                  startingColumnNumber = "9223372036854775807"
-                  endingColumnNumber = "9223372036854775807"
-                  startingLineNumber = "64"
-                  endingLineNumber = "64"
-                  offsetFromSymbolStart = "5063">
-               </Location>
-            </Locations>
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "Yes"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
             filePath = "../MeshMaya.h"
             timestampString = "429364874.96631"
             startingColumnNumber = "9223372036854775807"
@@ -463,6 +255,38 @@
             endingLineNumber = "114"
             landmarkName = "getMeshData(MDataBlock&amp; data, MObject&amp; input, MObject&amp; inputGeom, unsigned int mIndex, short tetMode, const std::vector&lt;Vector3d&gt;&amp; pts, std::vector&lt;int&gt;&amp; tetList, std::vector&lt;int&gt;&amp; faceList, std::vector&lt;edge&gt;&amp; edgeList, std::vector&lt;vertex&gt;&amp; vertexList, std::vector&lt;Matrix4d&gt;&amp; tetMat, std::vector&lt;double&gt;&amp; tetWeight)"
             landmarkType = "9">
+            <Locations>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "getMeshData(MDataBlock&amp;, MObject&amp;, MObject&amp;, unsigned int, short, std::__1::vector&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;edge, std::__1::allocator&lt;edge&gt; &gt;&amp;, std::__1::vector&lt;vertex, std::__1::allocator&lt;vertex&gt; &gt;&amp;, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt;&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;&amp;)"
+                  moduleName = "probeDeformer.bundle"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../MeshMaya.h"
+                  timestampString = "499330459.535192"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "114"
+                  endingLineNumber = "114"
+                  offsetFromSymbolStart = "172">
+               </Location>
+               <Location
+                  shouldBeEnabled = "No"
+                  ignoreCount = "0"
+                  continueAfterRunningActions = "No"
+                  symbolName = "getMeshData(MDataBlock&amp;, MObject&amp;, MObject&amp;, unsigned int, short, std::__1::vector&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 3, 1, 0, 3, 1&gt; &gt; &gt; const&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;int, std::__1::allocator&lt;int&gt; &gt;&amp;, std::__1::vector&lt;edge, std::__1::allocator&lt;edge&gt; &gt;&amp;, std::__1::vector&lt;vertex, std::__1::allocator&lt;vertex&gt; &gt;&amp;, std::__1::vector&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt;, std::__1::allocator&lt;Eigen::Matrix&lt;double, 4, 4, 0, 4, 4&gt; &gt; &gt;&amp;, std::__1::vector&lt;double, std::__1::allocator&lt;double&gt; &gt;&amp;)"
+                  moduleName = "probeDeformerARAP.bundle"
+                  usesParentBreakpointCondition = "Yes"
+                  urlString = "file:///Users/kaji/Dropbox/maple/mayac/probeDeformer/../MeshMaya.h"
+                  timestampString = "499330459.536292"
+                  startingColumnNumber = "9223372036854775807"
+                  endingColumnNumber = "9223372036854775807"
+                  startingLineNumber = "114"
+                  endingLineNumber = "114"
+                  offsetFromSymbolStart = "172">
+               </Location>
+            </Locations>
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -478,38 +302,6 @@
             startingLineNumber = "211"
             endingLineNumber = "211"
             landmarkName = "logSEc(const Matrix4d&amp; mm, const Matrix4d&amp; P = Matrix4d::Zero())"
-            landmarkType = "7">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497334496.038012"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "190"
-            endingLineNumber = "190"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
-            landmarkType = "9">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497339294.597812"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "229"
-            endingLineNumber = "229"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
             landmarkType = "9">
          </BreakpointContent>
       </BreakpointProxy>
@@ -520,11 +312,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformer/probeDeformer.cpp"
-            timestampString = "497339348.187547"
+            timestampString = "499315327.865874"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "278"
-            endingLineNumber = "278"
+            startingLineNumber = "230"
+            endingLineNumber = "230"
             landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -536,11 +328,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformer/probeDeformer.cpp"
-            timestampString = "497339533.477165"
+            timestampString = "499314465.047612"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "250"
-            endingLineNumber = "250"
+            startingLineNumber = "205"
+            endingLineNumber = "205"
             landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
             <Locations>
@@ -583,44 +375,12 @@
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497339658.66752"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "204"
-            endingLineNumber = "204"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
-            landmarkType = "9">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497339666.196686"
-            startingColumnNumber = "9223372036854775807"
-            endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "193"
-            endingLineNumber = "193"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
-            landmarkType = "9">
-         </BreakpointContent>
-      </BreakpointProxy>
-      <BreakpointProxy
-         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
-         <BreakpointContent
-            shouldBeEnabled = "No"
-            ignoreCount = "0"
-            continueAfterRunningActions = "No"
             filePath = "ProbeDeformer/probeDeformer.cpp"
-            timestampString = "497339695.863107"
+            timestampString = "499314465.047612"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "213"
-            endingLineNumber = "213"
+            startingLineNumber = "199"
+            endingLineNumber = "199"
             landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>
@@ -632,7 +392,55 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformer/probeDeformer.cpp"
-            timestampString = "497339702.292293"
+            timestampString = "499315327.865874"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "231"
+            endingLineNumber = "231"
+            landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ProbeDeformer/probeDeformer.cpp"
+            timestampString = "499315327.865874"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "219"
+            endingLineNumber = "219"
+            landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ProbeDeformerARAP/probeDeformerARAP.cpp"
+            timestampString = "499658664.145432"
+            startingColumnNumber = "9223372036854775807"
+            endingColumnNumber = "9223372036854775807"
+            startingLineNumber = "243"
+            endingLineNumber = "243"
+            landmarkName = "probeDeformerARAPNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
+            landmarkType = "7">
+         </BreakpointContent>
+      </BreakpointProxy>
+      <BreakpointProxy
+         BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
+         <BreakpointContent
+            shouldBeEnabled = "No"
+            ignoreCount = "0"
+            continueAfterRunningActions = "No"
+            filePath = "ProbeDeformer/probeDeformer.cpp"
+            timestampString = "500104041.588948"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
             startingLineNumber = "243"
@@ -647,14 +455,14 @@
             shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
-            filePath = "../ARAP.h"
-            timestampString = "497340920.634664"
+            filePath = "ProbeDeformer/probeDeformer.cpp"
+            timestampString = "500104073.402635"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "217"
-            endingLineNumber = "217"
-            landmarkName = "harmonicWeight(int numPts, const std::vector&lt;Matrix4d&gt;&amp; P, const std::vector&lt;int&gt;&amp; tetList, const std::vector&lt;double&gt;&amp; tetWeight, std::vector&lt; std::map&lt;int,double&gt; &gt;&amp; constraint, std::vector&lt;double&gt;&amp; constraintValue, std::vector&lt; std::vector&lt;double&gt; &gt;&amp; ptsWeight)"
-            landmarkType = "9">
+            startingLineNumber = "165"
+            endingLineNumber = "165"
+            landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -664,11 +472,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "ProbeDeformer/probeDeformer.cpp"
-            timestampString = "497341505.30707"
+            timestampString = "500104142.97599"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "279"
-            endingLineNumber = "279"
+            startingLineNumber = "237"
+            endingLineNumber = "237"
             landmarkName = "probeDeformerNode::deform( MDataBlock&amp; data, MItGeometry&amp; itGeo, const MMatrix &amp;localToWorldMatrix, unsigned int mIndex )"
             landmarkType = "7">
          </BreakpointContent>

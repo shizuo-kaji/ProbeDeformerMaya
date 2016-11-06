@@ -11,7 +11,8 @@
 #include "affinelib.h"
 #include "tetrise.h"
 #include "MeshMaya.h"
-#include "ARAP.h"
+#include "laplacian.h"
+#include "blendAff.h"
 
 using namespace Eigen;
 
@@ -57,39 +58,27 @@ public:
     static MObject      aProbeConstraintRadius;
     static MObject      aNormaliseWeight;
     static MObject      aAreaWeighted;
+    static MObject      aNeighbourWeighting;
     
 private:
     // variables
-	std::vector<Matrix4d> logSE;   // for rotation consistency
-	std::vector<Matrix3d> logR;   // for rotation consistency
-	std::vector<Matrix4d> PI;   // inverse of initial tet matrix
-    std::vector<Vector3d> probeCenter; // initial location of probes
+    BlendAff B;
+    Laplacian mesh;
     std::vector<Vector3d> tetCenter; // center of tets
     std::vector<vertex> vertexList;   // mesh data
-    std::vector<int> tetList;   // mesh data
     std::vector<edge> edgeList;   // mesh data
     std::vector<int> faceList;   // mesh data
-    std::vector<Vector3d> pts;   // coordinates for mesh points
-    std::vector<double> tetWeight; // tetWeight[j] is the stiffness of j-th tet
+    std::vector<Vector3d> pts, new_pts;   // coordinates for mesh points
     std::vector< std::vector<double> > wr, ws, wl; // wr[j][i] is the weight of ith probe on j-th tet
-    std::vector<int> closestPts; // closestPts[i] is the index of pt closest to i-th probe
+    std::vector<int> closestPts, closestTet; // closestPts[i] is the index of pt closest to i-th probe
     short isError;  // to catch error
     int numPrb;  // number of probes
-    int dim; // total number of pts including the "ghost" added for forming tetrahedra
-    std::vector< std::map<int,double> > constraint;  // if constraint[i] contains {j:x}, it means i-th probe constraints j-th point with weight x
-    std::vector< std::vector<double> > dist;    // dist[j][i] is the distance from j-th tet to i-th probe
-    std::vector< std::vector<double> > distPts; // distPts[i][j] is the distance from i-th probe to j-th pt; DIFFERENT ORDER FROM ABOVE
-    SpSolver solver;   // ARAP solver
-    SpMat constraintMat;                // ARAP constraint matrix
-    std::vector<Matrix4d> SE, logAff,Aff;
-    std::vector<Matrix3d> R,logS,S,logGL;
-    std::vector<Vector3d> L;
-    std::vector<Vector4d> quat;
-    std::vector<Matrix4d> A,blendedSE;
+    std::vector<T> constraint;  // [row,col,value): row probe constraints col point with strength value
+    std::vector< std::vector<double> > dist;    // dist[i][j] is the distance from j-th tet to i-th probe
+    std::vector< std::vector<double> > distPts; // distPts[i][j] is the distance from i-th probe to j-th pt
+    std::vector<Matrix4d> A,Q, blendedSE;  //temporary
     std::vector<Matrix3d> blendedR, blendedS;
     std::vector<Vector4d> blendedL;
-    std::vector<Vector3d> new_pts;
-    std::vector<Matrix4d> Q;  //temporary
     std::vector<double> tetEnergy;
     
 };

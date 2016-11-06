@@ -10,12 +10,13 @@
 
 #include "StdAfx.h"
 #include "probeDeformer.h"
-#include <set>
-#include "deformerConst.h"
 
 using namespace Eigen;
 using namespace AffineLib;
 using namespace Tetrise;
+
+typedef Triplet<double> T;
+
 
 MTypeId probeDeformerNode::id( 0x00000103 );
 MString probeDeformerNode::nodeName( "probeDeformer" );
@@ -37,6 +38,7 @@ MObject probeDeformerNode::aComputeWeight;
 MObject probeDeformerNode::aVisualisationMultiplier;
 MObject probeDeformerNode::aNormaliseWeight;
 MObject probeDeformerNode::aAreaWeighted;
+MObject probeDeformerNode::aNeighbourWeighting;
 
 void* probeDeformerNode::creator() { return new probeDeformerNode; }
  
@@ -52,7 +54,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     short visualisationMode = data.inputValue( aVisualisationMode ).asShort();
     double effectRadius = data.inputValue( aEffectRadius ).asDouble();
     double normExponent = data.inputValue( aNormExponent ).asDouble();
-	bool rotationCosistency = data.inputValue( aRotationConsistency ).asBool();
+	B.rotationConsistency = data.inputValue( aRotationConsistency ).asBool();
 	bool frechetSum = data.inputValue( aFrechetSum ).asBool();
     double visualisationMultiplier = data.inputValue(aVisualisationMultiplier).asDouble();
     
@@ -91,52 +93,16 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
     bool isNumProbeChanged = (numPrb != hMatrixArray.elementCount() || numPts != new_numPts);
     numPrb = hMatrixArray.elementCount();
     numPts = new_numPts;
-    //
-	if( ! rotationCosistency || numPrb != logSE.size() || numPrb != logR.size()){
-		logSE.clear();
-		logSE.resize(numPrb, Matrix4d::Zero().eval());
-		logR.clear();
-		logR.resize(numPrb, Matrix3d::Zero().eval());
-    }
+    B.setNum(numPrb);
 // setting transformation matrix
     std::vector<Matrix4d> initMatrix(numPrb), matrix(numPrb);
     readMatrixArray(hInitMatrixArray, initMatrix);
     readMatrixArray(hMatrixArray, matrix);
-    std::vector<Matrix3d> R(numPrb),logS(numPrb),S(numPrb),logGL(numPrb);
-    std::vector<Matrix4d> SE(numPrb),logAff(numPrb),Aff(numPrb);
-    std::vector<Vector3d> L(numPrb);
-    std::vector<Vector4d> quat(numPrb);
-    std::vector<Vector3d> probeCenter(numPrb);
     for( int i=0;i<numPrb;i++){
-        Aff[i]=initMatrix[i].inverse()*matrix[i];
-        probeCenter[i] << transPart(initMatrix[i]);
+        B.Aff[i]=initMatrix[i].inverse()*matrix[i];
+        B.centre[i] << transPart(initMatrix[i]);
     }
-    if(blendMode == BM_SRL || blendMode == BM_SSE || blendMode == BM_SQL){
-        for(int i=0;i<numPrb;i++){
-            parametriseGL(Aff[i].block(0,0,3,3), logS[i] ,R[i]);
-            L[i] = transPart(Aff[i]);
-            if(blendMode == BM_SRL){
-                logR[i]=logSOc(R[i], logR[i]);
-                S[i]=expSym(logS[i]);
-            }else if(blendMode == BM_SSE){
-                SE[i]=pad(R[i], L[i]);
-                logSE[i]=logSEc(SE[i], logSE[i]);
-            }else if(blendMode == BM_SQL){
-                Quaternion<double> Q(R[i].transpose());
-                quat[i] << Q.x(), Q.y(), Q.z(), Q.w();
-                S[i]=expSym(logS[i]);
-            }
-        }
-    }else if(blendMode == BM_LOG3){
-        for(int i=0;i<numPrb;i++){
-            logGL[i] = Aff[i].block(0,0,3,3).log();
-            L[i] = transPart(Aff[i]);
-        }
-    }else if(blendMode == BM_LOG4){
-        for(int i=0;i<numPrb;i++){
-            logAff[i] = Aff[i].log();
-        }
-    }
+    B.parametrise(blendMode);
     
 // transform target vertices
     // load per vertex weights
@@ -145,7 +111,6 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         ptsWeight[i++] = weightValue(data, mIndex, itGeo.index());
     }
     
-
     // weight computation
     if(!data.isClean(aComputeWeight) || isNumProbeChanged){
         // load probe weights
@@ -162,25 +127,23 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         }
         //
         wr.resize(numPts),ws.resize(numPts),wl.resize(numPts);
-        std::vector< std::vector<double> > dist(numPts);
         for(int j=0; j<numPts; j++ ){
             wr[j].resize(numPrb);ws[j].resize(numPrb);wl[j].resize(numPrb);
-            dist[j].resize(numPrb);
-            for( int i=0; i<numPrb; i++){
-                dist[j][i] = (pts[j]-probeCenter[i]).norm();
-            }
         }
+        D.setNum(numPrb, numPts, 0);
+        D.computeDistPts(pts, B.centre);
+        D.findClosestPts();
         if(weightMode == WM_INV_DISTANCE){
             for(int j=0; j<numPts; j++ ){
                 for( int i=0; i<numPrb; i++){
-                    wr[j][i] = ws[j][i] = wl[j][i] = probeRadius[i]/pow(dist[j][i],normExponent);
+                    wr[j][i] = ws[j][i] = wl[j][i] = probeRadius[i]/pow(D.distPts[i][j],normExponent);
                 }
             }
         }else if(weightMode == WM_CUTOFF_DISTANCE){
             for(int j=0; j<numPts; j++ ){
                 for( int i=0; i<numPrb; i++){
-                    wr[j][i] = ws[j][i] = wl[j][i] = (dist[j][i] > probeRadius[i])
-                    ? 0 : pow((probeRadius[i]-dist[j][i])/probeRadius[i],normExponent);
+                    wr[j][i] = ws[j][i] = wl[j][i] = (D.distPts[i][j] > probeRadius[i])
+                    ? 0 : pow((probeRadius[i]-D.distPts[i][j])/probeRadius[i],normExponent);
                 }
             }
         }else if(weightMode == WM_DRAW){
@@ -190,86 +153,81 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             float val;
             for(int j=0; j<numPts; j++ ){
                 for( int i=0; i<numPrb; i++){
-                    rWeightCurveR.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    rWeightCurveR.getValueAtPosition(D.distPts[i][j]/probeRadius[i], val );
                     wr[j][i] = val;
-                    rWeightCurveS.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    rWeightCurveS.getValueAtPosition(D.distPts[i][j]/probeRadius[i], val );
                     ws[j][i] = val;
-                    rWeightCurveL.getValueAtPosition(dist[j][i]/probeRadius[i], val );
+                    rWeightCurveL.getValueAtPosition(D.distPts[i][j]/probeRadius[i], val );
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR || weightMode == WM_HARMONIC_COTAN){
-            std::vector<int> fList,tList;
-            std::vector< std::vector<double> > ptsWeight(numPrb), w_tet(numPrb);
-            std::vector<Matrix4d> P;
-            std::vector<double> fWeight;
-            int d=makeFaceTet(data, input, inputGeom, mIndex, pts, fList, tList, P, fWeight);
-            std::vector< std::map<int,double> > weightConstraint(numPrb);
-            std::vector<double> weightConstraintValue(0);
+        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_COTAN || weightMode == WM_HARMONIC_TRANS){
+            makeFaceTet(data, input, inputGeom, mIndex, pts, M.tetList, M.tetMatrix, M.tetWeight);
+            M.numTet = (int)M.tetList.size()/4;
+            constraint.resize(numPrb);
+            // the vertex closest to the probe is given probeWeight
             for(int i=0;i<numPrb;i++){
-                weightConstraint[i].clear();
+                constraint[i]=T(i,D.closestPts[i],probeWeight[i]);
             }
-            if( weightMode == WM_HARMONIC_NEIGHBOUR ){
+            // vertices within effectRadius are given probeWeight
+            if( data.inputValue( aNeighbourWeighting ).asBool() ){
                 for(int i=0;i<numPrb;i++){
                     for(int j=0;j<numPts;j++){
-                        if(dist[j][i]<effectRadius){
-                            weightConstraint[i][j] = 1;
-                            weightConstraintValue.push_back(probeWeight[i]);
+                        if(D.distPts[i][j]<effectRadius){
+                            constraint.push_back(T(i,j,probeWeight[i]));
                         }
                     }
                 }
-            }else if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_COTAN){
-                std::vector<int> closestPts(numPrb);
-                for(int i=0;i<numPrb;i++){
-                    weightConstraint[i].clear();
-                    closestPts[i] = 0;
-                    double min_d = HUGE_VAL;
-                    for(int j=0;j<numPts;j++){
-                        if( dist[j][i] < min_d){
-                            min_d = dist[j][i];
-                            closestPts[i] = j;
-                        }
-                    }
-                }
-                for(int i=0;i<numPrb;i++){
-                    weightConstraint[i][closestPts[i]] = 1;
-                    weightConstraintValue.push_back(probeWeight[i]);
-                }
             }
+            // set boundary condition for weight computation
+            int numConstraint=constraint.size();
+            M.constraintWeight.resize(numConstraint);
+            M.constraintVal.resize(numConstraint,numPrb);
+            M.constraintVal.setZero();
+            for(int i=0;i<numConstraint;i++){
+                M.constraintVal(i,constraint[i].row())=constraint[i].value();
+                M.constraintWeight[i] = std::make_pair(constraint[i].col(), constraint[i].value());
+            }
+            // clear tetWeight
             if(!areaWeighted){
-                fWeight.clear();
-                fWeight.resize(P.size(),1.0);
+                M.tetWeight.clear();
+                M.tetWeight.resize(M.numTet,1.0);
             }
+            // solve the laplace equation
             int isError;
-            if( weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_NEIGHBOUR ){
-                isError = harmonicWeight(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+            if( weightMode == WM_HARMONIC){
+                M.computeTetMatrixInverse();
+                M.dim = numPts + M.numTet;
+                isError = M.ARAPprecompute();
             }else{
-                isError = harmonicCotan(numPts, P, tList, fWeight, weightConstraint, weightConstraintValue, ptsWeight);
+                M.dim = numPts;
+                isError = M.cotanPrecompute();
             }
             if(isError>0) return MS::kFailure;
+            M.harmonicSolve();
             for(int i=0;i<numPrb;i++){
                 for(int j=0;j<numPts;j++){
-                    wr[j][i] = ws[j][i] = wl[j][i] = ptsWeight[i][j];
+                    wr[j][i] = ws[j][i] = wl[j][i] = M.Sol.coeff(j,i);
                 }
             }
         }
-        // normalise
+        // normalise weights
         bool normaliseWeight = data.inputValue( aNormaliseWeight ).asBool();
         for(int j=0;j<numPts;j++){
             double sum = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
-            if (sum > 1 || normaliseWeight){
+            if ( (sum > 1 || normaliseWeight) && sum > 0){
                 for (int i = 0; i < numPrb; i++){
                     wr[j][i] /= sum;
                 }
             }
             sum = std::accumulate(ws[j].begin(), ws[j].end(), 0.0);
-            if (sum > 1 || normaliseWeight){
+            if ((sum > 1 || normaliseWeight) && sum > 0){
                 for (int i = 0; i < numPrb; i++){
                     ws[j][i] /= sum;
                 }
             }
             sum = std::accumulate(wl[j].begin(), wl[j].end(), 0.0);
-            if (sum > 1 || normaliseWeight){
+            if ((sum > 1 || normaliseWeight) && sum > 0){
                 for (int i = 0; i < numPrb; i++){
                     wl[j][i] /= sum;
                 }
@@ -279,51 +237,89 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
         status = data.setClean(aComputeWeight);
     }
     
-#pragma omp parallel for
-    for(int j=0; j<numPts; j++ ){
-        std::vector<double> wrr(numPrb),wss(numPrb),wll(numPrb);
-        for(int i=0;i<numPrb;i++){
-            wrr[i]=ptsWeight[j]*wr[j][i];
-            wss[i]=ptsWeight[j]*ws[j][i];
-            wll[i]=ptsWeight[j]*wl[j][i];
+    // compute the blended transformations at each mesh point
+    if(weightMode == WM_HARMONIC_TRANS){
+        // set boundary condition
+        int numConstraint=constraint.size();
+        M.constraintWeight.resize(numConstraint);
+        M.constraintVal.resize(numConstraint,12);
+        M.constraintVal.setZero();
+        for(int i=0;i<numConstraint;i++){
+            M.constraintVal.row(i) << B.logR[i](0,1), B.logR[i](0,2), B.logR[i](1,2),
+                B.logS[i](0,0), B.logS[i](0,1), B.logS[i](0,2),
+                B.logS[i](1,1), B.logS[i](1,2), B.logS[i](2,2),
+                B.L[i](0), B.L[i](1), B.L[i](2);
         }
-        // blend matrix
+        M.harmonicSolve();
+        //
         Matrix4d mat;
-        if(blendMode == BM_SRL){
-            Matrix3d RR,SS;
-            Vector3d l=blendMat(L, wll);
-            SS = expSym(blendMat(logS, wss));
-            RR = frechetSum ? frechetSO(R, wrr) : expSO(blendMat(logR, wr[j]));
-            mat = pad(SS*RR, l);
-        }else if(blendMode == BM_SSE){
-            Matrix4d RR;
-            Matrix3d SS=expSym(blendMat(logS, wss));
-            RR = expSE(blendMat(logSE, wrr));
-            mat = pad(SS,Vector3d::Zero()) * RR;
-        }else if(blendMode == BM_LOG3){
-            Matrix3d RR=blendMat(logGL, wrr).exp();
-            Vector3d l=blendMat(L, wll);
-            mat = pad(RR, l);
-        }else if(blendMode == BM_LOG4){
-            mat=blendMat(logAff, wrr).exp();
-        }else if(blendMode == BM_SQL){
-            Vector4d q=blendQuat(quat,wrr);
-            Vector3d l=blendMat(L, wll);
-            Matrix3d SS=blendMatLin(S,wss);
-            Quaternion<double> Q(q);
-            Matrix3d RR = Q.matrix().transpose();
-            mat = pad(SS*RR, l);
-        }else if(blendMode == BM_AFF){
-            mat = blendMatLin(Aff,wrr);
+        Matrix3d RR,SS;
+        Vector3d l;
+        // TODO: implement for different blendMode
+        for(int j=0; j<numPts; j++ ){
+            RR << 0, M.Sol(j,0), M.Sol(j,1),
+                -M.Sol(j,0), 0, M.Sol(j,2),
+                -M.Sol(j,1), -M.Sol(j,2), 0;
+            SS << M.Sol(j,3), M.Sol(j,4), M.Sol(j,5),
+                M.Sol(j,4), M.Sol(j,6), M.Sol(j,7),
+                M.Sol(j,5), M.Sol(j,7), M.Sol(j,8);
+            l << M.Sol(j,9), M.Sol(j,10), M.Sol(j,11);
+            mat = pad(expSym(SS)*expSO(RR), l);
+            RowVector4d p = pad(pts[j]) * mat;
+            Mpts[j].x = p[0];
+            Mpts[j].y = p[1];
+            Mpts[j].z = p[2];
+            if(worldMode)
+                Mpts[j] *= localToWorldMatrix.inverse();
         }
-        // apply matrix
-        RowVector4d p = pad(pts[j]) * mat;
-        Mpts[j].x = p[0];
-        Mpts[j].y = p[1];
-        Mpts[j].z = p[2];
-        if(worldMode)
-            Mpts[j] *= localToWorldMatrix.inverse();
+    }else{
+#pragma omp parallel for
+        for(int j=0; j<numPts; j++ ){
+            std::vector<double> wrr(numPrb),wss(numPrb),wll(numPrb);
+            for(int i=0;i<numPrb;i++){
+                wrr[i]=ptsWeight[j]*wr[j][i];
+                wss[i]=ptsWeight[j]*ws[j][i];
+                wll[i]=ptsWeight[j]*wl[j][i];
+            }
+            // blend matrix
+            Matrix4d mat;
+            if(blendMode == BM_SRL){
+                Matrix3d RR,SS;
+                Vector3d l=blendMat(B.L, wll);
+                SS = expSym(blendMat(B.logS, wss));
+                RR = frechetSum ? frechetSO(B.R, wrr) : expSO(blendMat(B.logR, wr[j]));
+                mat = pad(SS*RR, l);
+            }else if(blendMode == BM_SSE){
+                Matrix4d RR;
+                Matrix3d SS=expSym(blendMat(B.logS, wss));
+                RR = expSE(blendMat(B.logSE, wrr));
+                mat = pad(SS,Vector3d::Zero()) * RR;
+            }else if(blendMode == BM_LOG3){
+                Matrix3d RR=blendMat(B.logGL, wrr).exp();
+                Vector3d l=blendMat(B.L, wll);
+                mat = pad(RR, l);
+            }else if(blendMode == BM_LOG4){
+                mat=blendMat(B.logAff, wrr).exp();
+            }else if(blendMode == BM_SQL){
+                Vector4d q=blendQuat(B.quat,wrr);
+                Vector3d l=blendMat(B.L, wll);
+                Matrix3d SS=blendMatLin(B.S,wss);
+                Quaternion<double> Q(q);
+                Matrix3d RR = Q.matrix().transpose();
+                mat = pad(SS*RR, l);
+            }else if(blendMode == BM_AFF){
+                mat = blendMatLin(B.Aff,wrr);
+            }
+            // apply matrix
+            RowVector4d p = pad(pts[j]) * mat;
+            Mpts[j].x = p[0];
+            Mpts[j].y = p[1];
+            Mpts[j].z = p[2];
+            if(worldMode)
+                Mpts[j] *= localToWorldMatrix.inverse();
+        }
     }
+    
     // set positions
     itGeo.setAllPositions(Mpts);
     
@@ -407,7 +403,13 @@ MStatus probeDeformerNode::initialize()
     attributeAffects( aWorldMode, outputGeom );
     attributeAffects( aWorldMode, aComputeWeight );
     
-	aNormaliseWeight = nAttr.create( "normaliseWeight", "nw", MFnNumericData::kBoolean, true );
+    aNeighbourWeighting = nAttr.create( "neighbourWeighting", "nghbrw", MFnNumericData::kBoolean, false );
+    nAttr.setStorable(true);
+    addAttribute( aNeighbourWeighting );
+    attributeAffects( aNeighbourWeighting, outputGeom );
+    attributeAffects( aNeighbourWeighting, aComputeWeight );
+    
+    aNormaliseWeight = nAttr.create( "normaliseWeight", "nw", MFnNumericData::kBoolean, true );
     nAttr.setStorable(true);
     addAttribute( aNormaliseWeight );
     attributeAffects( aNormaliseWeight, outputGeom );
@@ -417,9 +419,9 @@ MStatus probeDeformerNode::initialize()
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
-    eAttr.addField( "harmonic", WM_HARMONIC);
-    eAttr.addField( "harmonic-neighbour", WM_HARMONIC_NEIGHBOUR);
+//    eAttr.addField( "harmonic-arap", WM_HARMONIC);
     eAttr.addField( "harmonic-cotan", WM_HARMONIC_COTAN);
+//    eAttr.addField( "harmonic-trans", WM_HARMONIC_TRANS);
     eAttr.setStorable(true);
     addAttribute( aWeightMode );
     attributeAffects( aWeightMode, outputGeom );

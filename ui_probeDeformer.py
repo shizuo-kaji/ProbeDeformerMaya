@@ -183,11 +183,12 @@ class UI_ProbeDeformer:
             pm.button( l="Add selection to probes", c=pm.Callback( self.addSelectedProbe, node, deformerType) )
             for j in range(len(self.probes[node])):
                 pm.button( l=self.probes[node][j].name(), c=pm.Callback( self.deleteProbe, node, j) )
-        with pm.rowLayout(numberOfColumns=4) :
+        with pm.rowLayout(numberOfColumns=5) :
             pm.attrControlGrp( label="blend mode", attribute= node.bm)
             pm.attrControlGrp( label="world mode", attribute= node.worldMode)
             pm.attrControlGrp( label="rotation consistency", attribute= node.rc)
             pm.attrControlGrp( label="area weight", attribute= node.aw)
+            pm.attrControlGrp( label="neighbour weighting", attribute= node.nghbrw)
         with pm.rowLayout(numberOfColumns=4) :
             pm.attrControlGrp( label="Weight mode", attribute= node.wtm)
             pm.attrFieldSliderGrp(label="effect radius", min=0.001, max=20.0, attribute=node.er)
