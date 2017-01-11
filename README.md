@@ -25,7 +25,7 @@ http://link.springer.com/chapter/10.1007/978-4-431-55483-7_6?no-access=true
 
 # How to compile:
 - For Mac users, look at the included Xcode project file ( or Makefile )
-- For Windows users, look at the included Visual Studio project file.
+- For Windows users, look at the included Visual Studio project file. __DO NOT__ turn on AVX or you'll get an exception.
 Please refer to Autodesk's web page for details.
 
 # How to use:
@@ -33,9 +33,10 @@ Please refer to Autodesk's web page for details.
 2. Place the UI python script files in "MAYA_SCRIPT_PATH"
 3. Open Script editor in Maya and type in the following Python command:
 
-    import ui_probeDeformer as ui
-    ui.UI_ProbeDeformer()
-
+```python
+import ui_probeDeformer as ui
+ui.UI_ProbeDeformer()
+```
 
 To visualise vertex color, go to "Display" => "Polygon" => "Custom Polygon Display"
 and tick "color" and select "emission."

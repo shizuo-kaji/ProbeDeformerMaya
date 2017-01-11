@@ -161,7 +161,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
                     wl[j][i] = val;
                 }
             }
-        }else if(weightMode == WM_HARMONIC || weightMode == WM_HARMONIC_COTAN || weightMode == WM_HARMONIC_TRANS){
+        }else if(weightMode & WM_HARMONIC){
             makeFaceTet(data, input, inputGeom, mIndex, pts, M.tetList, M.tetMatrix, M.tetWeight);
             M.numTet = (int)M.tetList.size()/4;
             constraint.resize(numPrb);
@@ -195,7 +195,7 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             }
             // solve the laplace equation
             int isError;
-            if( weightMode == WM_HARMONIC){
+            if( weightMode == WM_HARMONIC_ARAP){
                 M.computeTetMatrixInverse();
                 M.dim = numPts + M.numTet;
                 isError = M.ARAPprecompute();
@@ -212,27 +212,13 @@ MStatus probeDeformerNode::deform( MDataBlock& data, MItGeometry& itGeo, const M
             }
         }
         // normalise weights
-        bool normaliseWeight = data.inputValue( aNormaliseWeight ).asBool();
+        short normaliseWeightMode = data.inputValue( aNormaliseWeight ).asShort();
         for(int j=0;j<numPts;j++){
-            double sum = std::accumulate(wr[j].begin(), wr[j].end(), 0.0);
-            if ( (sum > 1 || normaliseWeight) && sum > 0){
-                for (int i = 0; i < numPrb; i++){
-                    wr[j][i] /= sum;
-                }
-            }
-            sum = std::accumulate(ws[j].begin(), ws[j].end(), 0.0);
-            if ((sum > 1 || normaliseWeight) && sum > 0){
-                for (int i = 0; i < numPrb; i++){
-                    ws[j][i] /= sum;
-                }
-            }
-            sum = std::accumulate(wl[j].begin(), wl[j].end(), 0.0);
-            if ((sum > 1 || normaliseWeight) && sum > 0){
-                for (int i = 0; i < numPrb; i++){
-                    wl[j][i] /= sum;
-                }
-            }
+            D.normaliseWeight(normaliseWeightMode, wr[j]);
+            D.normaliseWeight(normaliseWeightMode, ws[j]);
+            D.normaliseWeight(normaliseWeightMode, wl[j]);
         }
+        
         // END of weight computation
         status = data.setClean(aComputeWeight);
     }
@@ -409,8 +395,11 @@ MStatus probeDeformerNode::initialize()
     attributeAffects( aNeighbourWeighting, outputGeom );
     attributeAffects( aNeighbourWeighting, aComputeWeight );
     
-    aNormaliseWeight = nAttr.create( "normaliseWeight", "nw", MFnNumericData::kBoolean, true );
-    nAttr.setStorable(true);
+    aNormaliseWeight = eAttr.create( "normaliseWeight", "nw", NM_LINEAR );
+    eAttr.addField( "NONE", NM_NONE );
+    eAttr.addField( "Linear",  NM_LINEAR );
+    eAttr.addField( "Softmax", NM_SOFTMAX );
+    eAttr.setStorable(true);
     addAttribute( aNormaliseWeight );
     attributeAffects( aNormaliseWeight, outputGeom );
     attributeAffects( aNormaliseWeight, aComputeWeight );
@@ -419,7 +408,7 @@ MStatus probeDeformerNode::initialize()
     eAttr.addField( "inverse", WM_INV_DISTANCE );
     eAttr.addField( "cutoff", WM_CUTOFF_DISTANCE );
     eAttr.addField( "draw", WM_DRAW );
-//    eAttr.addField( "harmonic-arap", WM_HARMONIC);
+//    eAttr.addField( "harmonic-arap", WM_HARMONIC_ARAP);
     eAttr.addField( "harmonic-cotan", WM_HARMONIC_COTAN);
 //    eAttr.addField( "harmonic-trans", WM_HARMONIC_TRANS);
     eAttr.setStorable(true);

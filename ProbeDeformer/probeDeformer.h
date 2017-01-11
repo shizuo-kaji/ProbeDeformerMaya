@@ -8,13 +8,13 @@
 #include <unsupported/Eigen/MatrixFunctions>
 #include <Eigen/Sparse>
 
-#include "affinelib.h"
-#include "tetrise.h"
-#include "MeshMaya.h"
-#include "laplacian.h"
-#include "deformerConst.h"
-#include "blendAff.h"
-#include "distance.h"
+#include "../affinelib.h"
+#include "../tetrise.h"
+#include "../MeshMaya.h"
+#include "../laplacian.h"
+#include "../deformerConst.h"
+#include "../blendAff.h"
+#include "../distance.h"
 
 using namespace Eigen;
 

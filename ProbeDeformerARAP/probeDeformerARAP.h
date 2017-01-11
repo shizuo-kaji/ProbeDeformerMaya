@@ -8,11 +8,13 @@
 #include <Eigen/Sparse>
 #include <unsupported/Eigen/MatrixFunctions>
 
-#include "affinelib.h"
-#include "tetrise.h"
-#include "MeshMaya.h"
-#include "laplacian.h"
-#include "blendAff.h"
+#include "../affinelib.h"
+#include "../deformerConst.h"
+#include "../tetrise.h"
+#include "../MeshMaya.h"
+#include "../laplacian.h"
+#include "../blendAff.h"
+#include "../distance.h"
 
 using namespace Eigen;
 
@@ -63,6 +65,7 @@ public:
 private:
     // variables
     BlendAff B;
+    Distance D;
     Laplacian mesh;
     std::vector<Vector3d> tetCenter; // center of tets
     std::vector<vertex> vertexList;   // mesh data
@@ -70,12 +73,9 @@ private:
     std::vector<int> faceList;   // mesh data
     std::vector<Vector3d> pts, new_pts;   // coordinates for mesh points
     std::vector< std::vector<double> > wr, ws, wl; // wr[j][i] is the weight of ith probe on j-th tet
-    std::vector<int> closestPts, closestTet; // closestPts[i] is the index of pt closest to i-th probe
     short isError;  // to catch error
     int numPrb;  // number of probes
     std::vector<T> constraint;  // [row,col,value): row probe constraints col point with strength value
-    std::vector< std::vector<double> > dist;    // dist[i][j] is the distance from j-th tet to i-th probe
-    std::vector< std::vector<double> > distPts; // distPts[i][j] is the distance from i-th probe to j-th pt
     std::vector<Matrix4d> A,Q, blendedSE;  //temporary
     std::vector<Matrix3d> blendedR, blendedS;
     std::vector<Vector4d> blendedL;
