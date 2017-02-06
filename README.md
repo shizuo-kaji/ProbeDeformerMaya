@@ -26,7 +26,7 @@ http://link.springer.com/chapter/10.1007/978-4-431-55483-7_6?no-access=true
 # How to compile:
 - For Mac users, look at the included Xcode project file ( or Makefile )
 - For Windows users, look at the included Visual Studio project file. __DO NOT__ turn on AVX or you'll get an exception.
-Please refer to Autodesk's web page for details.
+- on some systems, specifying the compiler option -DEIGEN_DONT_VECTORIZE may be necessary to avoid compilation errors (thank giordi91 for this information)
 
 # How to use:
 1. Place the plugin files in "MAYA_PLUG_IN_PATH"
